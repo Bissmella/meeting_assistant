@@ -1,15 +1,21 @@
 from backend.services.recorder import Recorder
 from fastrtc import AsyncStreamHandler
 import numpy as np
+from services.stt import SpeechToText
 
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 24000
 RECORDINGS_DIR = "recordings"
-class RecordingHandler(AsyncStreamHandler):
-    def __init__(self, stt_instance, sample_rate=SAMPLE_RATE):
+class MeetingHandler(AsyncStreamHandler):
+    def __init__(self, stt_api, sample_rate=SAMPLE_RATE):
+        super().__init__(
+            input_sample_rate=SAMPLE_RATE,
+            output_frame_size=480,
+            output_sample_rate=SAMPLE_RATE,
+        )
         self.sample_rate = sample_rate
         self.n_samples_received = 0
         self.recorder = Recorder(RECORDINGS_DIR)
-        self.stt = stt_instance
+        self.stt = SpeechToText(api=stt_api)
         self.current_buffer = []
         self.text_log = []
 
@@ -26,6 +32,9 @@ class RecordingHandler(AsyncStreamHandler):
 
         self.text_log.append(text)
         await self.recorder.add_text(text)
+
+    def get_transcript(self):
+        return self.text_log
 
     async def emit(self):
         return None  # nothing to send to frontend

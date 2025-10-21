@@ -1,0 +1,2 @@
+RECORDINGS_DIR = "recordings"
+SAMPLE_RATE = 24000
