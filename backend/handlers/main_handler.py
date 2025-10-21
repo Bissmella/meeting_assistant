@@ -18,6 +18,7 @@ class MeetingHandler(AsyncStreamHandler):
         self.stt = SpeechToText(api=stt_api)
         self.current_buffer = []
         self.text_log = []
+        self.closed = False
 
     async def receive(self, frame: tuple[int, np.ndarray]) -> None:
         sr, audio = frame
@@ -35,6 +36,20 @@ class MeetingHandler(AsyncStreamHandler):
 
     def get_transcript(self):
         return self.text_log
+    
+    async def finalize_recording(self):
+        """Finalize the recording session."""
+        # Finalize STT (flush remaining audio or close connection)
+        if self.closed:
+            return
+        
+
+        # Save final transcript
+        transcript = "\n".join(self.text_log)
+        await self.recorder.save_transcript(transcript)
+        await self.recorder.close()
+        print("Recording finalized and saved.")
+        self.closed = True
 
     async def emit(self):
         return None  # nothing to send to frontend

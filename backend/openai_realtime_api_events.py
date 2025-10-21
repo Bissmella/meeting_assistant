@@ -139,6 +139,8 @@ class ResponseAudioDelta(BaseEvent[Literal["response.audio.delta"]]):
 class ResponseAudioDone(BaseEvent[Literal["response.audio.done"]]):
     pass
 
+class RecordingStopped(BaseEvent[Literal["recording.stopped"]]):
+    message: str = "Recording session has been stopped."
 
 class TranscriptLogprob(BaseModel):
     bytes: bytes

@@ -14,7 +14,7 @@ class Recorder:
         self.audio_frames.append(pcm.copy())
 
     async def add_text(self, text):
-        self.text_file.write(text + "\n")
+        self.text_file.write(text)
         self.text_file.flush()
 
     async def close(self):
