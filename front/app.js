@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
 
 // --- API Configuration ---
@@ -20,15 +20,14 @@ const generateMockTranscript = (title) => {
 };
 
 
-// --- The Main Application Component ---
 const App = () => {
-    // 2. Application State
+    //app state
     const [appState, setAppState] = useState('ready'); // 'ready', 'recording', 'processing', 'chatting'
     const [meetings, setMeetings] = useState([]);
     const [currentTranscript, setCurrentTranscript] = useState('');
     const [meetingTitle, setMeetingTitle] = useState('');
 
-    // 3. Chat State
+    //chat state
     const [chatHistory, setChatHistory] = useState([]);
     const [queryInput, setQueryInput] = useState('');
     const [isQuerying, setIsQuerying] = useState(false);
@@ -36,22 +35,22 @@ const App = () => {
 
 
 
-    // Recording/session state
+    //recording state
     const [recorder, setRecorder] = useState(null); // kept for UI parity (not a MediaRecorder here)
     const [mediaStream, setMediaStream] = useState(null);
     const [sessionId, setSessionId] = useState(null);
     const [chunkIndex, setChunkIndex] = useState(0);
 
-    // Audio pipeline refs
-    const audioContextRef = useRef(null);
-    const sourceNodeRef = useRef(null);
-    const processorRef = useRef(null);
-    const audioBufferRef = useRef([]); // collects Float32 arrays until flush
-    const encoderRef = useRef(null);
-    const msProcessorRef = useRef(null);
-    const msReaderRef = useRef(null);
-    const chunkIndexRef = useRef(0);
-    const wsRef = useRef(null);
+    //audio pipeline refs
+    const audioContextRef = useRef(null); //web audio api
+    const sourceNodeRef = useRef(null);   //audio source node - mic
+    const processorRef = useRef(null);    //process chunks of audio data
+    const audioBufferRef = useRef([]); // temporary storage, collects Float32 arrays until flush
+    const encoderRef = useRef(null);   //PCM to opus encoder (WebCodecs)
+    const msProcessorRef = useRef(null); // MediaStreamTrack processor
+    const msReaderRef = useRef(null);   // MediaStreamTrack reader
+    const chunkIndexRef = useRef(0);   //keep track of chunk index
+    const wsRef = useRef(null);         //websocket for audio streaming
 
     // Keep a ref+state in sync for chunk numbering
     const incrementChunkIndex = () => {
@@ -60,128 +59,6 @@ const App = () => {
             chunkIndexRef.current = nv;
             return nv;
         });
-    };
-
-    // --- Application Actions ---
-
-    // Helper: convert Float32Array interleaved to mono Float32 and resample to 24kHz
-    const resampleFloat32To24k = (buffers, inputSampleRate) => {
-        // Concatenate buffers
-        let totalLen = buffers.reduce((s, b) => s + b.length, 0);
-        const input = new Float32Array(totalLen);
-        let offset = 0;
-        for (const b of buffers) {
-            input.set(b, offset);
-            offset += b.length;
-        }
-
-        const targetRate = 24000;
-        if (inputSampleRate === targetRate) return input;
-
-        const ratio = inputSampleRate / targetRate;
-        const outLen = Math.round(input.length / ratio);
-        const out = new Float32Array(outLen);
-        for (let i = 0; i < outLen; i++) {
-            const idx = i * ratio;
-            const i0 = Math.floor(idx);
-            const i1 = Math.min(i0 + 1, input.length - 1);
-            const frac = idx - i0;
-            out[i] = input[i0] * (1 - frac) + input[i1] * frac;
-        }
-        return out;
-    };
-
-    const floatTo16BitPCM = (float32) => {
-        const l = float32.length;
-        const out = new Int16Array(l);
-        for (let i = 0; i < l; i++) {
-            let s = Math.max(-1, Math.min(1, float32[i]));
-            out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-        return out;
-    };
-
-    const uint8ArrayToBase64 = (u8) => {
-        // browser-friendly base64 from Uint8Array
-        let CHUNK_SIZE = 0x8000;
-        let index = 0;
-        const length = u8.length;
-        let result = '';
-        while (index < length) {
-            const slice = u8.subarray(index, Math.min(index + CHUNK_SIZE, length));
-            result += String.fromCharCode.apply(null, slice);
-            index += CHUNK_SIZE;
-        }
-        return btoa(result);
-    };
-
-    // Send a chunk: if a global/available Opus encoder exists (e.g. window.OpusEncoder
-    // provided by a WASM build you add), use it to produce Opus bytes. Otherwise send
-    // PCM bytes and mark server-side to transcode to Opus.
-    const sendAudioChunk = async (session_id, idx, int16pcm, sampleRate = 24000) => {
-        try {
-            let payload = {
-                session_id,
-                chunk_index: idx,
-                codec: 'opus',
-                sample_rate: sampleRate,
-                channels: 1,
-                data: null // base64
-            };
-
-            if (window && window.OpusEncoder && typeof window.OpusEncoder.encode === 'function') {
-                // Example encoder API: OpusEncoder.encode(Int16Array) -> Uint8Array (opus packets)
-                const opusBytes = window.OpusEncoder.encode(int16pcm);
-                payload.data = uint8ArrayToBase64(new Uint8Array(opusBytes));
-                payload.codec = 'opus';
-            } else {
-                // Fallback: send raw PCM and instruct server to transcode to Opus
-                payload.data = uint8ArrayToBase64(new Uint8Array(int16pcm.buffer));
-                payload.codec = 'pcm_s16le';
-                payload.server_should_transcode_to = 'opus';
-            }
-
-            // Prefer websocket if available (lower latency)
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ type: 'chunk', ...payload }));
-                incrementChunkIndex();
-            } else {
-                await fetch('/api/upload_audio_base64', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                incrementChunkIndex();
-            }
-        } catch (err) {
-            console.error('Failed to send audio chunk', err);
-        }
-    };
-
-    const sendEncodedChunk = async (session_id, idx, base64data, sampleRate = 24000) => {
-        try {
-            const payload = {
-                session_id,
-                chunk_index: idx,
-                codec: 'opus',
-                sample_rate: sampleRate,
-                channels: 1,
-                data: base64data
-            };
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ type: 'chunk', ...payload }));
-                incrementChunkIndex();
-            } else {
-                await fetch('/api/upload_audio_base64', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                incrementChunkIndex();
-            }
-        } catch (err) {
-            console.error('Failed to send encoded opus chunk', err);
-        }
     };
 
     // Open a websocket for audio streaming for this session_id
@@ -216,6 +93,45 @@ const App = () => {
         } catch (err) {
             console.warn('Failed to open websocket', err);
             wsRef.current = null;
+        }
+    };
+
+    const onOpusRecorded = useCallback(
+        (opus: Uint8Array) => {
+        sendMessage(
+            JSON.stringify({
+            type: "input_audio_buffer.append",
+            audio: base64EncodeOpus(opus),
+            })
+        );
+        },
+        [sendMessage]
+    );
+
+    const { setupAudio, shutdownAudio, audioProcessor } =
+        useAudioProcessor(onOpusRecorded);
+    const { canvasRef: recordingCanvasRef,
+        downloadRecording,
+        recordingAvailable,
+        } = useRecordingCanvas({
+        size: 1080,
+        shouldRecord: shouldConnect,
+        audioProcessor: audioProcessor.current,
+        chatHistory: rawChatHistory,
+    });
+
+    const onConnectButtonPress = async () => {
+        // If we're not connected yet
+        if (!shouldConnect) {
+        const mediaStream = await askMicrophoneAccess();
+        // If we have access to the microphone:
+        if (mediaStream) {
+            await setupAudio(mediaStream);
+            setShouldConnect(true);
+        }
+        } else {
+        setShouldConnect(false);
+        shutdownAudio();
         }
     };
 
