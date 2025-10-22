@@ -1,7 +1,7 @@
 from backend.services.recorder import Recorder
 from fastrtc import AsyncStreamHandler
 import numpy as np
-from services.stt import SpeechToText
+from backend.services.stt import SpeechToText
 
 SAMPLE_RATE = 24000
 RECORDINGS_DIR = "recordings"
