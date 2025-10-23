@@ -90,11 +90,12 @@ export const useAudioProcessor = (
     [onOpusRecorded]
   );
 
-  const shutdownAudio = useCallback(() => {
+  const shutdownAudio = useCallback(async() => {
     if (audioProcessorRef.current) {
       const { audioContext, opusRecorder, outputWorklet } =
         audioProcessorRef.current;
-
+      //pause to flush buffers
+      await opusRecorder.pause(true);
       // Disconnect all nodes
       outputWorklet.disconnect();
       audioContext.close();
