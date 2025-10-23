@@ -1,25 +1,11 @@
 import { useRef, useCallback } from "react";
 import OpusRecorder from "opus-recorder";
 
-const getAudioWorkletNode = async (
-  audioContext: AudioContext,
-  name: string
-) => {
-  try {
-    return new AudioWorkletNode(audioContext, name);
-  } catch {
-    await audioContext.audioWorklet.addModule(`/${name}.js`);
-    return new AudioWorkletNode(audioContext, name, {});
-  }
-};
 
 export interface AudioProcessor {
   audioContext: AudioContext;
   opusRecorder: OpusRecorder;
-  decoder: DecoderWorker;
-  outputWorklet: AudioWorkletNode;
   inputAnalyser: AnalyserNode;
-  outputAnalyser: AnalyserNode;
   mediaStreamDestination: MediaStreamAudioDestinationNode;
 }
 
@@ -33,10 +19,6 @@ export const useAudioProcessor = (
       if (audioProcessorRef.current) return audioProcessorRef.current;
 
       const audioContext = new AudioContext();
-      const outputWorklet = await getAudioWorkletNode(
-        audioContext,
-        "audio-output-processor"
-      );
       const source = audioContext.createMediaStreamSource(mediaStream);
       // source.connect(inputWorklet);
       const inputAnalyser = audioContext.createAnalyser();
@@ -45,37 +27,9 @@ export const useAudioProcessor = (
 
       const mediaStreamDestination =
         audioContext.createMediaStreamDestination();
-      outputWorklet.connect(mediaStreamDestination);
       source.connect(mediaStreamDestination);
 
-      outputWorklet.connect(audioContext.destination);
-      const outputAnalyser = audioContext.createAnalyser();
-      outputAnalyser.fftSize = 2048;
-      outputWorklet.connect(outputAnalyser);
-
-      const decoder = new Worker("/decoderWorker.min.js");
       let micDuration = 0;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      decoder.onmessage = (event: MessageEvent<any>) => {
-        if (!event.data) {
-          return;
-        }
-        const frame = event.data[0];
-        outputWorklet.port.postMessage({
-          frame: frame,
-          type: "audio",
-          micDuration: micDuration,
-        });
-      };
-      decoder.postMessage({
-        command: "init",
-        bufferLength: (960 * audioContext.sampleRate) / 24000,
-        decoderSampleRate: 24000,
-        outputBufferSampleRate: audioContext.sampleRate,
-        resampleQuality: 0,
-      });
-
       // For buffer length: 960 = 24000 / 12.5 / 2
       // The /2 is a bit optional, but won't hurt for recording the mic.
       // Note that bufferLength actually has 0 impact for mono audio, only
@@ -124,10 +78,7 @@ export const useAudioProcessor = (
       audioProcessorRef.current = {
         audioContext,
         opusRecorder,
-        decoder,
-        outputWorklet,
         inputAnalyser,
-        outputAnalyser,
         mediaStreamDestination,
       };
       // Resume the audio context if it was suspended

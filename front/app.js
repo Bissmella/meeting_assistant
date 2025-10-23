@@ -1,6 +1,9 @@
+import useWebSocket, { ReadyState } from "react-use-websocket";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
-
+import { useAudioProcessor as useAudioProcessor } from "./useAudioProcessor";
+import { useMicrophoneAccess } from "./useMicrophoneAccess";
+import { useBackendServerUrl } from "./useBackendServerUrl";
 // --- API Configuration ---
 // NOTE: apiKey is intentionally left blank; the Canvas environment provides it at runtime.
 const apiKey = "";
@@ -40,6 +43,10 @@ const App = () => {
     const [mediaStream, setMediaStream] = useState(null);
     const [sessionId, setSessionId] = useState(null);
     const [chunkIndex, setChunkIndex] = useState(0);
+    const { microphoneAccess, askMicrophoneAccess } = useMicrophoneAccess();
+    const [shouldConnect, setShouldConnect] = useState(false);
+
+    const backendServerUrl = useBackendServerUrl();
 
     //audio pipeline refs
     const audioContextRef = useRef(null); //web audio api
@@ -52,6 +59,14 @@ const App = () => {
     const chunkIndexRef = useRef(0);   //keep track of chunk index
     const wsRef = useRef(null);         //websocket for audio streaming
 
+
+
+    useEffect(() => {
+        if (!backendServerUrl) return;
+
+        setWebSocketUrl(backendServerUrl.toString() + "/v1/realtime");
+    }, [backendServerUrl]);
+
     // Keep a ref+state in sync for chunk numbering
     const incrementChunkIndex = () => {
         setChunkIndex(prev => {
@@ -61,41 +76,13 @@ const App = () => {
         });
     };
 
-    // Open a websocket for audio streaming for this session_id
-    const ensureWs = (session_id) => {
-        if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
-        const loc = window.location;
-        const wsProtocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${loc.host}/ws/audio?session_id=${encodeURIComponent(session_id)}`;
-        try {
-            const ws = new WebSocket(wsUrl);
-            wsRef.current = ws;
-            ws.addEventListener('open', () => {
-                console.log('Audio websocket opened', wsUrl);
-                // send start message
-                ws.send(JSON.stringify({ type: 'start', session_id: session_id, sample_rate: 24000, channels: 1, codec: 'opus' }));
-            });
-            ws.addEventListener('message', (ev) => {
-                try {
-                    const msg = JSON.parse(ev.data);
-                    // small debugging acks
-                    if (msg.type === 'ack') {
-                        // ack: { session_id, chunk_index }
-                        // could be used for retry/backpressure
-                        // console.log('ack', msg);
-                    }
-                } catch (e) {
-                    // non-json message
-                }
-            });
-            ws.addEventListener('close', () => console.log('Audio websocket closed'));
-            ws.addEventListener('error', (e) => console.warn('Audio websocket error', e));
-        } catch (err) {
-            console.warn('Failed to open websocket', err);
-            wsRef.current = null;
-        }
-    };
-
+    const { sendMessage, lastMessage, readyState } = useWebSocket(
+        webSocketUrl || null,
+        {
+        protocols: ["realtime"],
+        },
+        shouldConnect
+    );
     const onOpusRecorded = useCallback(
         (opus: Uint8Array) => {
         sendMessage(
@@ -420,7 +407,7 @@ const App = () => {
             <h2 className="text-xl font-semibold mb-4 text-gray-800">Meeting Controls</h2>
             {appState === 'ready' && (
                 <button
-                    onClick={startRecording}
+                    onClick={onConnectButtonPress}
                     className="w-full flex items-center justify-center p-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md"
                 >
                     <Mic className="w-5 h-5 mr-3" /> Attend a New Meeting
