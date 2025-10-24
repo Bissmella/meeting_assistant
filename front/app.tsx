@@ -2,6 +2,7 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
 import { useAudioProcessor as useAudioProcessor } from "./useAudioProcessor";
+import { base64DecodeOpus, base64EncodeOpus } from "./audioUtil";
 import { useMicrophoneAccess } from "./useMicrophoneAccess";
 import { useBackendServerUrl } from "./useBackendServerUrl";
 // --- API Configuration ---
@@ -34,6 +35,7 @@ const App = () => {
     const [chatHistory, setChatHistory] = useState([]);
     const [queryInput, setQueryInput] = useState('');
     const [isQuerying, setIsQuerying] = useState(false);
+    const [webSocketUrl, setWebSocketUrl] = useState<string | null>(null);
 
 
 
@@ -67,15 +69,6 @@ const App = () => {
         setWebSocketUrl(backendServerUrl.toString() + "/v1/realtime");
     }, [backendServerUrl]);
 
-    // Keep a ref+state in sync for chunk numbering
-    const incrementChunkIndex = () => {
-        setChunkIndex(prev => {
-            const nv = prev + 1;
-            chunkIndexRef.current = nv;
-            return nv;
-        });
-    };
-
     const { sendMessage, lastMessage, readyState } = useWebSocket(
         webSocketUrl || null,
         {
@@ -94,6 +87,16 @@ const App = () => {
         },
         [sendMessage]
     );
+
+    const onRecordingFinished = useCallback(
+        () => {
+        sendMessage(
+            JSON.stringify({
+            type: "input_audio_buffer.finalize",
+            })
+        );
+        }
+    )
 
     const { setupAudio, shutdownAudio, audioProcessor } =
         useAudioProcessor(onOpusRecorded);
@@ -135,212 +138,10 @@ const App = () => {
         }
     };
 
-    const startRecording = async () => {
-        try {
-            const title = `Project Sync - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-            setMeetingTitle(title);
-
-            // Request microphone access
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            setMediaStream(stream);
-
-            // Create a unique session id for chunk grouping
-            const sid = `s_${Date.now()}`;
-            setSessionId(sid);
-            setChunkIndex(0);
-            // keep ref in sync and open websocket for real-time streaming
-            chunkIndexRef.current = 0;
-            ensureWs(sid);
-
-            // Prefer WebCodecs path (MediaStreamTrackProcessor + AudioEncoder) when available
-            if (window.MediaStreamTrackProcessor && window.AudioEncoder) {
-                try {
-                    const track = stream.getAudioTracks()[0];
-                    const msp = new window.MediaStreamTrackProcessor({ track });
-                    msProcessorRef.current = msp;
-                    const reader = msp.readable.getReader();
-                    msReaderRef.current = reader;
-
-                    // Create AudioEncoder for Opus at 24kHz mono
-                    const encoder = new window.AudioEncoder({
-                        output: async (chunk, metadata) => {
-                            try {
-                                // copy encoded chunk bytes
-                                const size = chunk.byteLength || (chunk.data && chunk.data.byteLength) || 0;
-                                const u8 = new Uint8Array(size);
-                                // EncodedAudioChunk has copyTo
-                                if (typeof chunk.copyTo === 'function') {
-                                    chunk.copyTo(u8);
-                                } else if (chunk.data) {
-                                    u8.set(new Uint8Array(chunk.data));
-                                }
-                                const b64 = uint8ArrayToBase64(u8);
-                                await sendEncodedChunk(sid, chunkIndexRef.current, b64, 24000);
-                            } catch (err) {
-                                console.error('Error handling encoded chunk', err);
-                            }
-                        },
-                        error: (e) => console.error('AudioEncoder error', e)
-                    });
-
-                    encoder.configure({ codec: 'opus', sampleRate: 24000, numberOfChannels: 1, bitrate: 64000 });
-                    encoderRef.current = encoder;
-
-                    // Start pumping audio data into encoder
-                    (async function pump() {
-                        while (true) {
-                            const { value, done } = await reader.read();
-                            if (done) break;
-                            try {
-                                // value is an AudioData object from MediaStreamTrackProcessor
-                                encoder.encode(value);
-                            } catch (err) {
-                                console.error('encode error', err);
-                            } finally {
-                                try { value.close(); } catch (e) {}
-                            }
-                        }
-                    })();
-
-                    setRecorder({ webcodecs: true });
-                    setAppState('recording');
-                } catch (err) {
-                    console.warn('WebCodecs path failed, falling back to PCM path', err);
-                }
-            }
-
-            // If no webcodecs/encoder started, fallback to ScriptProcessor PCM path
-            if (!recorder || !recorder.webcodecs) {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                const ac = new AudioContext();
-                audioContextRef.current = ac;
-
-                const source = ac.createMediaStreamSource(stream);
-                sourceNodeRef.current = source;
-
-                // bufferSize: 4096 is a reasonable default. Mono output
-                const processor = ac.createScriptProcessor(4096, source.channelCount, 1);
-                processorRef.current = processor;
-
-                audioBufferRef.current = [];
-
-                processor.onaudioprocess = (event) => {
-                    // take first channel (mono) and store copy
-                    const ch = event.inputBuffer.getChannelData(0);
-                    audioBufferRef.current.push(new Float32Array(ch));
-                };
-
-                source.connect(processor);
-                processor.connect(ac.destination); // required in some browsers to start processing
-
-                // Periodically flush buffers (send every 1s)
-                const flushInterval = setInterval(async () => {
-                    if (!audioBufferRef.current.length) return;
-                    const buffers = audioBufferRef.current.splice(0, audioBufferRef.current.length);
-                    const inputSampleRate = ac.sampleRate;
-                    const resampled = resampleFloat32To24k(buffers, inputSampleRate);
-                    const int16 = floatTo16BitPCM(resampled);
-                    await sendAudioChunk(sid, chunkIndexRef.current, int16, 24000);
-                }, 1000);
-
-                // store a lightweight token in recorder state so finishMeeting can detect running
-                setRecorder({ flushInterval });
-                setAppState('recording');
-            }
-        } catch (err) {
-            console.error('startRecording failed', err);
-        }
-    };
-
     const finishMeeting = async () => {
-        // Stop the audio capture, flush pending buffers, and tell backend to finalize
-        if (recorder && recorder.flushInterval) {
-            // stop periodic flush
-            clearInterval(recorder.flushInterval);
-        }
-
-        if (processorRef.current) {
-            try {
-                // Flush any remaining audio
-                const ac = audioContextRef.current;
-                if (audioBufferRef.current.length) {
-                    const buffers = audioBufferRef.current.splice(0, audioBufferRef.current.length);
-                    const resampled = resampleFloat32To24k(buffers, ac.sampleRate);
-                    const int16 = floatTo16BitPCM(resampled);
-                    await sendAudioChunk(sessionId, chunkIndexRef.current, int16, 24000);
-                }
-            } catch (err) {
-                console.error('Error flushing remaining audio', err);
-            }
-        }
-
-        // Disconnect and stop tracks
-        try {
-            if (processorRef.current) {
-                processorRef.current.disconnect();
-                processorRef.current.onaudioprocess = null;
-                processorRef.current = null;
-            }
-            if (sourceNodeRef.current) {
-                sourceNodeRef.current.disconnect();
-                sourceNodeRef.current = null;
-            }
-            // WebCodecs cleanup (if used)
-            if (msReaderRef.current) {
-                try { await msReaderRef.current.cancel(); } catch (e) {}
-                msReaderRef.current = null;
-            }
-            if (msProcessorRef.current) {
-                try { msProcessorRef.current.track.stop(); } catch (e) {}
-                msProcessorRef.current = null;
-            }
-            if (encoderRef.current) {
-                try { await encoderRef.current.flush(); } catch (e) {}
-                try { encoderRef.current.close(); } catch (e) {}
-                encoderRef.current = null;
-            }
-            if (audioContextRef.current) {
-                await audioContextRef.current.close();
-                audioContextRef.current = null;
-            }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(t => t.stop());
-                setMediaStream(null);
-            }
-        } catch (err) {
-            console.warn('Error during audio shutdown', err);
-        }
-
-        // Notify backend to finalize session (server-side assembly / transcription)
-        try {
-            const res = await fetch('/api/finish_upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId })
-            });
-            const json = await res.json();
-            if (json.success) {
-                setMeetings(prev => [{ ...json.note }, ...prev]);
-                setCurrentTranscript(json.note.transcript || '');
-            } else {
-                console.error('finish_upload error', json);
-            }
-        } catch (err) {
-            console.error('Error finishing upload', err);
-            // fallback to mock
-            setAppState('processing');
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            const finalTranscript = generateMockTranscript(meetingTitle);
-            setMeetings(prev => [{ id: String(prev.length + 1), title: meetingTitle, transcript: finalTranscript, timestamp: new Date() }, ...prev]);
-        } finally {
-            // Close websocket (if used) for this session
-            try { closeWs(sessionId); } catch (e) {}
-            setRecorder(null);
-            setSessionId(null);
-            setChunkIndex(0);
-            setAppState('ready');
-            setMeetingTitle('');
-        }
+        await shutdownAudio();
+        onRecordingFinished();
+        setShouldConnect(false);
     };
 
     const handleQuery = async (e) => {
