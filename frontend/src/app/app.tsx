@@ -31,25 +31,10 @@ const App = () => {
 
 
     //recording state
-    const [recorder, setRecorder] = useState(null); // kept for UI parity (not a MediaRecorder here)
-    const [mediaStream, setMediaStream] = useState(null);
-    const [sessionId, setSessionId] = useState(null);
-    const [chunkIndex, setChunkIndex] = useState(0);
     const { microphoneAccess, askMicrophoneAccess } = useMicrophoneAccess();
     const [shouldConnect, setShouldConnect] = useState(false);
 
     const backendServerUrl = useBackendServerUrl();
-
-    //audio pipeline refs
-    const audioContextRef = useRef(null); //web audio api
-    const sourceNodeRef = useRef(null);   //audio source node - mic
-    const processorRef = useRef(null);    //process chunks of audio data
-    const audioBufferRef = useRef([]); // temporary storage, collects Float32 arrays until flush
-    const encoderRef = useRef(null);   //PCM to opus encoder (WebCodecs)
-    const msProcessorRef = useRef(null); // MediaStreamTrack processor
-    const msReaderRef = useRef(null);   // MediaStreamTrack reader
-    const chunkIndexRef = useRef(0);   //keep track of chunk index
-    const wsRef = useRef(null);         //websocket for audio streaming
 
 
 
@@ -57,6 +42,7 @@ const App = () => {
         if (!backendServerUrl) return;
 
         setWebSocketUrl(backendServerUrl.toString() + "/v1/realtime");
+        setAppState('ready');
     }, [backendServerUrl]);
 
     const { sendMessage, lastMessage, readyState } = useWebSocket(
@@ -74,6 +60,7 @@ const App = () => {
             audio: base64EncodeOpus(opus),
             })
         );
+        console.log("Sent Opus chunk of size:", opus.length);
         },
         [sendMessage]
     );
@@ -100,6 +87,7 @@ const App = () => {
         if (mediaStream) {
             await setupAudio(mediaStream);
             setShouldConnect(true);
+            setAppState('recording');
         }
         } else {
         setShouldConnect(false);
@@ -112,6 +100,8 @@ const App = () => {
         await shutdownAudio();
         onRecordingFinished();
         setShouldConnect(false);
+        setAppState('processing');
+        setAppState('ready');
     };
 
     const handleQuery = async (e: React.FormEvent<HTMLFormElement>) => {
