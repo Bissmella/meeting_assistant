@@ -2,6 +2,7 @@ import time
 import numpy as np
 import httpx
 from fastrtc import audio_to_float32
+import asyncio
 
 class SpeechToText:
     """Speech to Text Service Wrapper"""
@@ -36,11 +37,16 @@ class SpeechToText:
             self.time_first_audio_sent = time.perf_counter()
 
         # Send the audio to your Colab STT model
-        response = await self._send({"type": "audio_chunk", "pcm": audio.tolist()})
+        if False:  # TODO: adjust as per your STT backend requirements
+            response = await self._send({"type": "audio_chunk", "pcm": audio.tolist()})
 
-        # Optionally, record words received
-        if "text" in response:
-            self.received_words += len(response["text"].split())
+            # Optionally, record words received
+            if "text" in response:
+                self.received_words += len(response["text"].split())
+        else:
+            # Mock response for demonstration
+            await asyncio.sleep(0.1)  # simulate network delay
+            response = "simulated transcription"
 
         return response
         

@@ -20,6 +20,7 @@ class MeetingHandler(AsyncStreamHandler):
         self.text_log = []
         self.closed = False
 
+
     async def receive(self, frame: tuple[int, np.ndarray]) -> None:
         sr, audio = frame
         assert sr == self.sample_rate
@@ -53,3 +54,15 @@ class MeetingHandler(AsyncStreamHandler):
 
     async def emit(self):
         return None  # nothing to send to frontend
+    
+    def copy(self):
+        return MeetingHandler()
+
+    async def __aenter__(self):
+        print("MeetingHandler started")
+        self.closed = False
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        print("MeetingHandler closing")
+        await self.finalize_recording()

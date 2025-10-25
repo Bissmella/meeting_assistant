@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "lucide-react": "^0.547.0",
+    "react-use-websocket": "^4.13.0"
+  }
+}

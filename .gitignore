@@ -1,0 +1,14 @@
+# Global ignores
+__pycache__/
+node_modules/
+.env
+dist/
+build/
+
+# Backend stuff
+backend/__pycache__/
+
+# Frontend stuff
+frontend/.next/
+frontend/node_modules/
+frontend/out/

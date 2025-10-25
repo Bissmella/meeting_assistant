@@ -62,23 +62,34 @@ async def websocket_route(websocket: WebSocket):
 
         handler = MeetingHandler(stt_api=STT_API) #TODO handle to be defined
         async with handler:
-            #await handler.start_up()
+            print("here1")
             await _run_route(websocket, handler)
-
+            print("here2")
     except Exception as exc:
         print(f"WebSocket connection error: {exc}")
 
 
 async def _run_route(websocket: WebSocket, handler: MeetingHandler):
+    logger.info("Starting _run_route")
     emit_queue: asyncio.Queue[ora.ServerEvent] = asyncio.Queue()
+    async def consume_emit_queue():
+        while True:
+            event = await emit_queue.get()
+            print("Emit queue event:", event)
+            emit_queue.task_done()
     try:
         async with asyncio.TaskGroup() as tg:
             tg.create_task(
                 receive_loop(websocket, handler, emit_queue), name="receive_loop()"
             )
-    finally:
-        await handler.finalize_recording()
-        logger.info("websocket_route() finished")
+            tg.create_task(
+                    consume_emit_queue(), name="emit_queue_consumer"
+                )
+    except Exception as e:
+        import traceback
+        print("Exception in _run_route:", e)
+        traceback.print_exc()
+    
 
 
 async def receive_loop(
@@ -90,10 +101,13 @@ async def receive_loop(
 
     Can decide to send messages via `emit_queue`.
     """
+    print("in receive_loop")
     opus_reader = sphn.OpusStreamReader(SAMPLE_RATE)
     wait_for_first_opus = True
     while True:
+        logger.info("WebSocket connected, entering receive loop")
         try:
+            print("waiting for message")
             message_raw = await websocket.receive_text()
         except WebSocketDisconnect as e:
             logger.info(
@@ -134,7 +148,7 @@ async def receive_loop(
             continue
 
         message_to_record = message
-
+        print(f"Received message type: {type(message)}, raw: {message_raw[:50]}")
         if isinstance(message, ora.InputAudioBufferAppend):
             opus_bytes = base64.b64decode(message.audio)
             if wait_for_first_opus:
@@ -152,7 +166,7 @@ async def receive_loop(
             )
 
             if pcm.size:
-                await handler.receive((SAMPLE_RATE, pcm[np.newaxis, :]))
+                await handler.receive((SAMPLE_RATE, pcm))
         elif isinstance(message, ora.RecordingStopped):
             await handler.finalize_recording()
             await websocket.close(code=1000, reason="Recording stopped")
@@ -168,5 +182,5 @@ async def receive_loop(
         else:
             logger.info("Ignoring message:", str(message)[:100])
 
-        if message_to_record is not None and handler.recorder is not None:
-            await handler.recorder.add_event("client", message_to_record)
+        # if message_to_record is not None and handler.recorder is not None:
+        #     await handler.recorder.add_event("client", message_to_record)
