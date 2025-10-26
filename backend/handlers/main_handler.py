@@ -47,7 +47,6 @@ class MeetingHandler(AsyncStreamHandler):
 
         # Save final transcript
         transcript = "\n".join(self.text_log)
-        await self.recorder.save_transcript(transcript)
         await self.recorder.close()
         print("Recording finalized and saved.")
         self.closed = True

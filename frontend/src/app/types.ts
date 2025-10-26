@@ -2,8 +2,9 @@
 export interface Meeting {
     id: string;
     title: string;
+    participants: string[];
     transcript: string;
-    timestamp?: Date | string | null;
+    start_time?: Date | string | null;
 }
 
 export interface ChatMessage {

@@ -111,6 +111,8 @@ class InputAudioBufferSpeechStopped(
 ):
     """A pause was detected by the VAD."""
 
+class InputAudioBufferFinalize(BaseEvent[Literal["input_audio_buffer.finalize"]]):
+    """Signals that the client has finished the meeting."""
 
 class Response(BaseModel):
     object: Literal["realtime.response"] = "realtime.response"
@@ -196,6 +198,7 @@ ServerEvent = Union[
 # Client events (from client to OpenAI)
 ClientEvent = Union[
     SessionUpdate,
+    InputAudioBufferFinalize,
     InputAudioBufferAppend,
     # Used internally for recording, we're not expecting the user to send this
     UnmuteInputAudioBufferAppendAnonymized,

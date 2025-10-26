@@ -62,9 +62,7 @@ async def websocket_route(websocket: WebSocket):
 
         handler = MeetingHandler(stt_api=STT_API) #TODO handle to be defined
         async with handler:
-            print("here1")
             await _run_route(websocket, handler)
-            print("here2")
     except Exception as exc:
         print(f"WebSocket connection error: {exc}")
 
@@ -101,13 +99,11 @@ async def receive_loop(
 
     Can decide to send messages via `emit_queue`.
     """
-    print("in receive_loop")
     opus_reader = sphn.OpusStreamReader(SAMPLE_RATE)
     wait_for_first_opus = True
     while True:
         logger.info("WebSocket connected, entering receive loop")
         try:
-            print("waiting for message")
             message_raw = await websocket.receive_text()
         except WebSocketDisconnect as e:
             logger.info(
@@ -148,7 +144,6 @@ async def receive_loop(
             continue
 
         message_to_record = message
-        print(f"Received message type: {type(message)}, raw: {message_raw[:50]}")
         if isinstance(message, ora.InputAudioBufferAppend):
             opus_bytes = base64.b64decode(message.audio)
             if wait_for_first_opus:
@@ -167,9 +162,14 @@ async def receive_loop(
 
             if pcm.size:
                 await handler.receive((SAMPLE_RATE, pcm))
+        elif isinstance(message, ora.InputAudioBufferFinalize):
+            await handler.finalize_recording()
+            print("meeting finished, finalizing")
+            await websocket.close(code=1000, reason="Meeting finalized")
         elif isinstance(message, ora.RecordingStopped):
             await handler.finalize_recording()
             await websocket.close(code=1000, reason="Recording stopped")
+            break
         elif isinstance(message, ora.SessionUpdate):
             await handler.update_session(message.session)
             await emit_queue.put(ora.SessionUpdated(session=message.session))
