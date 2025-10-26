@@ -27,6 +27,8 @@ import logging
 from backend.utils.utils import WebSocketClosedError
 import backend.openai_realtime_api_events as ora
 from backend.handlers.main_handler import MeetingHandler
+from backend.models.meeting import Meeting
+from backend.services.meeting_memory import MeetingMemory
 
 # --- Configuration ---
 app = FastAPI()
@@ -50,6 +52,10 @@ ClientEventAdapter = TypeAdapter(
 )
 
 
+@app.on_event("startup")
+async def startup_event():
+    app.state.meeting_memory = MeetingMemory()
+
 
 @app.websocket("/v1/realtime")
 async def websocket_route(websocket: WebSocket):
@@ -60,7 +66,7 @@ async def websocket_route(websocket: WebSocket):
         # will not connect.
         await websocket.accept(subprotocol="realtime")
 
-        handler = MeetingHandler(stt_api=STT_API) #TODO handle to be defined
+        handler = MeetingHandler(STT_API, app.state.meeting_memory) #TODO handle to be defined
         async with handler:
             await _run_route(websocket, handler)
     except Exception as exc:
@@ -162,6 +168,9 @@ async def receive_loop(
 
             if pcm.size:
                 await handler.receive((SAMPLE_RATE, pcm))
+        elif isinstance(message, ora.InputAudioBufferStart):
+            handler.meeting = Meeting(**message.meeting)
+
         elif isinstance(message, ora.InputAudioBufferFinalize):
             await handler.finalize_recording()
             print("meeting finished, finalizing")

@@ -2,11 +2,13 @@ from backend.services.recorder import Recorder
 from fastrtc import AsyncStreamHandler
 import numpy as np
 from backend.services.stt import SpeechToText
+from backend.models.meeting import Meeting
+from backend.services.meeting_memory import MeetingMemory
 
 SAMPLE_RATE = 24000
 RECORDINGS_DIR = "recordings"
 class MeetingHandler(AsyncStreamHandler):
-    def __init__(self, stt_api, sample_rate=SAMPLE_RATE):
+    def __init__(self, stt_api, meeting_memory:MeetingMemory, sample_rate=SAMPLE_RATE):
         super().__init__(
             input_sample_rate=SAMPLE_RATE,
             output_frame_size=480,
@@ -14,8 +16,10 @@ class MeetingHandler(AsyncStreamHandler):
         )
         self.sample_rate = sample_rate
         self.n_samples_received = 0
+        self.meeting: Meeting | None = None
         self.recorder = Recorder(RECORDINGS_DIR)
         self.stt = SpeechToText(api=stt_api)
+        self.meeting_memory = meeting_memory
         self.current_buffer = []
         self.text_log = []
         self.closed = False
@@ -31,12 +35,11 @@ class MeetingHandler(AsyncStreamHandler):
 
         # Stream audio to STT (non-blocking)
         text = await self.stt.send_audio(audio)
-
-        self.text_log.append(text)
-        await self.recorder.add_text(text)
+        self.meeting.transcript += " " + text
+        
 
     def get_transcript(self):
-        return self.text_log
+        return self.meeting.transcript if self.meeting else ""
     
     async def finalize_recording(self):
         """Finalize the recording session."""
@@ -46,8 +49,11 @@ class MeetingHandler(AsyncStreamHandler):
         
 
         # Save final transcript
-        transcript = "\n".join(self.text_log)
+        await self.recorder.add_text(self.meeting.transcript)
+        
         await self.recorder.close()
+        if self.meeting.transcript.strip():
+            self.meeting_memory.add_meeting(self.meeting)
         print("Recording finalized and saved.")
         self.closed = True
 

@@ -3,6 +3,7 @@ from datetime import datetime
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
+from backend.models.meeting import Meeting
 
 CHROMA_DIR = "./data/meetings"
 
@@ -31,25 +32,18 @@ class MeetingMemory:
 
     def add_meeting(
         self,
-        meeting_id: str,
-        title: str,
-        transcript: str,
-        participants: list[str],
-        datetime_str: str = None,
+        meeting: Meeting,
     ):
         """Store a meeting transcript as chunks with metadata."""
 
-        if datetime_str is None:
-            datetime_str = datetime.now(datetime.timezone.utc)
-
-        chunks = self.splitter.split_text(transcript)
+        chunks = self.splitter.split_text(meeting.transcript)
 
         metadatas = [
             {
-                "meeting_id": meeting_id,
-                "title": title,
-                "participants": ", ".join(participants),
-                "datetime": datetime_str,
+                "meeting_id": meeting.meeting_id,
+                "title": meeting.title,
+                "participants": ", ".join(meeting.participants),
+                "datetime": meeting.start_time,
                 "chunk_index": i,
             }
             for i in range(len(chunks))

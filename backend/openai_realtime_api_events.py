@@ -18,6 +18,8 @@ from typing import (
 from pydantic import BaseModel, Field, model_validator
 
 from backend.utils.system_prompts import Instructions
+from backend.models.meeting import Meeting
+
 
 T = TypeVar("T", bound=str)
 
@@ -111,6 +113,10 @@ class InputAudioBufferSpeechStopped(
 ):
     """A pause was detected by the VAD."""
 
+class InputAudioBufferStart(BaseEvent[Literal["input_audio_buffer.start"]]):
+    """Signals that the client has started sending audio."""
+    meeting: Meeting
+
 class InputAudioBufferFinalize(BaseEvent[Literal["input_audio_buffer.finalize"]]):
     """Signals that the client has finished the meeting."""
 
@@ -198,6 +204,7 @@ ServerEvent = Union[
 # Client events (from client to OpenAI)
 ClientEvent = Union[
     SessionUpdate,
+    InputAudioBufferStart,
     InputAudioBufferFinalize,
     InputAudioBufferAppend,
     # Used internally for recording, we're not expecting the user to send this
