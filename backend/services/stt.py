@@ -12,9 +12,13 @@ class SpeechToText:
         api: The URL of your STT backend (e.g. an ngrok endpoint)
         """
         self.api = api
+        self.audio_queue = asyncio.Queue()
+        self.transcript_buffer = "" #buffer for partial transcripts
         self.sent_samples = 0
         self.received_words = 0
         self.time_first_audio_sent = None  # fixed naming
+        self.running = True
+        asyncio.create_task(self._consume_audio_queue())
 
     async def _send(self, payload: dict):
         """Send payload to STT backend asynchronously"""
@@ -35,8 +39,9 @@ class SpeechToText:
 
         if self.time_first_audio_sent is None:
             self.time_first_audio_sent = time.perf_counter()
-
+        self.audio_queue.put_nowait(audio)
         # Send the audio to your Colab STT model
+        """
         if False:  # TODO: adjust as per your STT backend requirements
             response = await self._send({"type": "audio_chunk", "pcm": audio.tolist()})
 
@@ -49,5 +54,16 @@ class SpeechToText:
             response = "simulated transcription"
 
         return response
-        
+        """
+    async def _consume_audio_queue(self):
+        while self.running:
+            audio = await self.audio_queue.get()
+            try:
+                response = await self._send({"type": "audio_chunk", "pcm": audio.tolist()})
+                if "text" in response:
+                    self.transcript_buffer += " " + response["text"]
+            except Exception as e:
+                print("Error sending audio to STT backend:", e)
+            finally:
+                self.audio_queue.task_done()
         

@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from backend.models.meeting import Meeting
@@ -15,12 +15,11 @@ class MeetingMemory:
         if embedder is None:
             self.embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         else:
-            self.embeddings = embedder
-
+            self.embedder = embedder
         #chroma db
         self.db = Chroma(
             persist_directory=CHROMA_DIR,
-            embedding_function=self.embeddings,
+            embedding_function=self.embedder,
         )
 
         #text splitter

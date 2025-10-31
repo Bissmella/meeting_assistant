@@ -35,11 +35,7 @@ app = FastAPI()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-# NOTE: The apiKey is left blank. The runtime environment securely provides it for the Gemini API calls.
-GEMINI_API_KEY = ""
-GEMINI_MODEL_NAME = "gemini-2.5-flash-preview-09-2025"
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL_NAME}:generateContent?key={GEMINI_API_KEY}"
-STT_API = ""
+STT_API = "https://ungoaded-tashina-trustily.ngrok-free.dev/stt"
 # --- In-Memory Database (Simulating a Vector DB) ---
 # Stores: { id: str, title: str, transcript: str, timestamp: float, vector: dict }
 MEETING_NOTES = []
@@ -150,6 +146,7 @@ async def receive_loop(
             continue
 
         message_to_record = message
+        
         if isinstance(message, ora.InputAudioBufferAppend):
             opus_bytes = base64.b64decode(message.audio)
             if wait_for_first_opus:
@@ -169,7 +166,8 @@ async def receive_loop(
             if pcm.size:
                 await handler.receive((SAMPLE_RATE, pcm))
         elif isinstance(message, ora.InputAudioBufferStart):
-            handler.meeting = Meeting(**message.meeting)
+            print("Starting new meeting recording session")
+            handler.meeting = message.meeting
 
         elif isinstance(message, ora.InputAudioBufferFinalize):
             await handler.finalize_recording()

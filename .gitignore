@@ -4,10 +4,12 @@ node_modules/
 .env
 dist/
 build/
+ngrok_keys/
 
 # Backend stuff
 backend/__pycache__/
 backend/recordings/
+backend/data/
 
 # Frontend stuff
 frontend/.next/

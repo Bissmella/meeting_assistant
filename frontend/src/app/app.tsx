@@ -7,6 +7,7 @@ import { base64DecodeOpus, base64EncodeOpus } from "./audioUtil";
 import { useMicrophoneAccess } from "./useMicrophoneAccess";
 import { useBackendServerUrl } from "./useBackendServerUrl";
 import { Meeting, ChatMessage } from './types';
+import MeetingControlPanel from './MeetingControlPanel';
 // --- API Configuration ---
 // NOTE: apiKey is intentionally left blank; the Canvas environment provides it at runtime.
 const apiKey = "";
@@ -18,11 +19,11 @@ const App = () => {
     //app state
     const [appState, setAppState] = useState('ready'); // 'ready', 'recording', 'processing', 'chatting'
     const [meetings, setMeetings] = useState<Meeting[]>([]);
-    const [currentMeeting, setCurrentMeeting] = useState<Meeting>({id: crypto.randomUUID(),
+    const [currentMeeting, setCurrentMeeting] = useState<Meeting>(() => ({id: crypto.randomUUID(),
     title: '',
     participants: [],
     transcript: '',
-    start_time: new Date(),});
+    start_time: new Date(),}));
     const [currentTranscript, setCurrentTranscript] = useState('');
     const [meetingTitle, setMeetingTitle] = useState('');
 
@@ -98,7 +99,7 @@ const App = () => {
                 start_time: new Date(),
             };
             setCurrentMeeting(meetingWithStartTime);
-            await sendMessage(
+            sendMessage(
                 JSON.stringify({
                 type: "input_audio_buffer.start",
                 meeting: meetingWithStartTime,
@@ -166,69 +167,8 @@ const App = () => {
     };
 
 
-    const MeetingControlPanel = () => (
-        <div className="p-4 bg-white shadow-xl rounded-xl">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Meeting Controls</h2>
-            {appState === 'ready' && (
-                <div className="space-y-2">
-                <input
-                    type="text"
-                    placeholder="Meeting Title"
-                    value={currentMeeting?.title || ''}
-                    onChange={e =>
-                        setCurrentMeeting(prev => prev ? { ...prev, title: e.target.value } : prev)
-                    }
-                    className="border p-2 rounded w-full"
-                />
+    
 
-                <input
-                    type="text"
-                    placeholder="Participants (comma separated)"
-                    value={currentMeeting?.participants.join(', ') || ''}
-                    onChange={e =>
-                        setCurrentMeeting(prev => prev
-                            ? { ...prev, participants: e.target.value.split(',').map(p => p.trim()) }: prev
-                            
-                        )
-                    }
-                    className="border p-2 rounded w-full"
-                />
-                <button
-                    onClick={onConnectButtonPress}
-                    className="w-full flex items-center justify-center p-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md"
-                >
-                    <Mic className="w-5 h-5 mr-3" /> Attend a New Meeting
-                </button>
-                </div>
-            )}
-
-            {appState === 'recording' && (
-                <div className="space-y-3">
-                    <p className="text-sm text-center font-medium text-red-600">
-                        <span className="animate-pulse inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>
-                        Recording: **{currentMeeting.title}**
-                    </p>
-                    <button
-                        onClick={finishMeeting}
-                        className="w-full flex items-center justify-center p-3 text-lg font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md"
-                    >
-                        <StopCircle className="w-5 h-5 mr-3" /> Meeting Finished
-                    </button>
-                    <div className="p-3 bg-gray-50 border border-gray-200 text-sm rounded-lg text-gray-700 h-24 overflow-y-auto whitespace-pre-wrap">
-                        {currentTranscript}
-                    </div>
-                </div>
-            )}
-
-            {appState === 'processing' && (
-                <div className="flex flex-col items-center justify-center p-6 space-y-3">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                    <p className="text-indigo-600 font-medium">Processing Audio (Kyutai STT Simulation)...</p>
-                    <p className="text-sm text-gray-500">Generating transcript and actionable notes.</p>
-                </div>
-            )}
-        </div>
-    );
 
     const ChatInterface = () => (
         <div className="flex flex-col h-full bg-white shadow-xl rounded-xl overflow-hidden">
@@ -359,7 +299,14 @@ const App = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Column 1: Meeting Controls */}
                     <div className="lg:col-span-1 space-y-8">
-                        <MeetingControlPanel />
+                        <MeetingControlPanel
+                        appState={appState}
+                        currentMeeting={currentMeeting}
+                        setCurrentMeeting={setCurrentMeeting}
+                        onConnectButtonPress={onConnectButtonPress}
+                        finishMeeting={finishMeeting}
+                        currentTranscript={currentTranscript}
+                        />
                         <MeetingList />
                         <p className="text-xs text-center text-gray-400">
                             User ID: <span className="font-mono">001</span>

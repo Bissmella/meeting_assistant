@@ -34,8 +34,8 @@ class MeetingHandler(AsyncStreamHandler):
         await self.recorder.add_audio(audio)
 
         # Stream audio to STT (non-blocking)
-        text = await self.stt.send_audio(audio)
-        self.meeting.transcript += " " + text
+        await self.stt.send_audio(audio)
+        self.meeting.transcript = self.stt.transcript_buffer
         
 
     def get_transcript(self):
