@@ -3,6 +3,7 @@ import numpy as np
 import httpx
 from fastrtc import audio_to_float32
 import asyncio
+import json
 
 class SpeechToText:
     """Speech to Text Service Wrapper"""
@@ -23,7 +24,11 @@ class SpeechToText:
     async def _send(self, payload: dict):
         """Send payload to STT backend asynchronously"""
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(self.api, json=payload)
+            resp = await client.post(self.api, json=payload, headers={"Content-Type": "application/json"})
+            if resp.status_code >= 400:
+                print(f"❌ STT backend returned {resp.status_code}")
+                print("🔍 Response text:", resp.text)
+                #return {"error": f"Backend error {resp.status_code}", "details": resp.text}
             resp.raise_for_status()
             return resp.json()
 
