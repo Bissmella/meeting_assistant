@@ -34,6 +34,7 @@ export const useAudioProcessor = (
       // The /2 is a bit optional, but won't hurt for recording the mic.
       // Note that bufferLength actually has 0 impact for mono audio, only
       // the frameSize and maxFramesPerPage seems to have any.
+      
       const recorderOptions = {
         mediaTrackConstraints: {
           audio: {
@@ -48,7 +49,7 @@ export const useAudioProcessor = (
         bufferLength: Math.round((960 * audioContext.sampleRate) / 24000),
         encoderFrameSize: 20,
         encoderSampleRate: 24000,
-        maxFramesPerPage: 2,
+        maxFramesPerPage: 4, // 4 x 20ms = 80ms per page, 1920 samples at 24kHz suitable for moshi stt model
         numberOfChannels: 1,
         recordingGain: 1,
         resampleQuality: 3,
