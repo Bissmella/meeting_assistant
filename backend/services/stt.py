@@ -42,20 +42,41 @@ class SpeechToText:
             self.time_first_audio_sent = time.perf_counter()
         self.audio_queue.put_nowait(audio)
         # Send the audio to your Colab STT model
-        """
-        if False:  # TODO: adjust as per your STT backend requirements
-            response = await self._send({"type": "audio_chunk", "pcm": audio.tolist()})
+    
+    async def _consume_audio_queue(self):
+        buffer = []
+        last_send = time.time()
+        while self.running:
+            try:
+                audio = await asyncio.wait_for(self.audio_queue.get(), timeout=0.1)
+                buffer.append(audio)
+                self.audio_queue.task_done()
 
-            # Optionally, record words received
-            if "text" in response:
-                self.received_words += len(response["text"].split())
-        else:
-            # Mock response for demonstration
-            await asyncio.sleep(0.1)  # simulate network delay
-            response = "simulated transcription"
+                # send every 1s or when buffer big enough
+                if len(buffer) >= 25: ##time.time() - last_send > 1.0 or
+                    big_chunk = np.concatenate(buffer)
+                    buffer = []
+                    last_send = time.time()
 
-        return response
-        """
+                    response = await self._send({
+                        "type": "audio_chunk",
+                        "pcm": big_chunk.tolist()
+                    })
+                    if "text" in response:
+                        self.transcript_buffer += " " + response["text"]
+
+            except asyncio.TimeoutError:
+                # flush any partial buffer if no new audio
+                if buffer:
+                    big_chunk = np.concatenate(buffer)
+                    buffer = []
+                    response = await self._send({
+                        "type": "audio_chunk",
+                        "pcm": big_chunk.tolist()
+                    })
+                    if "text" in response:
+                        self.transcript_buffer += " " + response["text"]
+    """
     async def _consume_audio_queue(self):
         while self.running:
             audio = await self.audio_queue.get()
@@ -67,4 +88,4 @@ class SpeechToText:
                 print("Error sending audio to STT backend:", e)
             finally:
                 self.audio_queue.task_done()
-        
+    """

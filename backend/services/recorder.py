@@ -6,7 +6,7 @@ class Recorder:
     def __init__(self, dir="recordings"):
         os.makedirs(dir, exist_ok=True)
         self.dir = dir
-        self.text_file = open(f"{dir}/transcript.txt", "a")
+        self.text_file = open(f"{dir}/transcript.txt", "w", encoding="utf-8")
         self.audio_path = f"{dir}/audio.wav"
         self.audio_frames = []
 
