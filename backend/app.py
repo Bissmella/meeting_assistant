@@ -173,6 +173,7 @@ async def receive_loop(
             await handler.finalize_recording()
             print("meeting finished, finalizing")
             await websocket.close(code=1000, reason="Meeting finalized")
+            return
         elif isinstance(message, ora.RecordingStopped):
             await handler.finalize_recording()
             await websocket.close(code=1000, reason="Recording stopped")

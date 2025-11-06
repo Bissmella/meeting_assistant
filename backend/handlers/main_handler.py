@@ -49,6 +49,8 @@ class MeetingHandler(AsyncStreamHandler):
         
 
         # Save final transcript
+        await self.stt.finalize()
+        self.meeting.transcript = self.stt.transcript_buffer
         await self.recorder.add_text(self.meeting.transcript)
         
         await self.recorder.close()
@@ -71,3 +73,4 @@ class MeetingHandler(AsyncStreamHandler):
     async def __aexit__(self, exc_type, exc, tb):
         print("MeetingHandler closing")
         await self.finalize_recording()
+        print("Meeting handler finalized")

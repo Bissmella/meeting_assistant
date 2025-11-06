@@ -42,7 +42,7 @@ class MeetingMemory:
                 "meeting_id": meeting.meeting_id,
                 "title": meeting.title,
                 "participants": ", ".join(meeting.participants),
-                "datetime": meeting.start_time,
+                "datetime": meeting.start_time.isoformat(),
                 "chunk_index": i,
             }
             for i in range(len(chunks))

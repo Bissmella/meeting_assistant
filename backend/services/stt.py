@@ -19,7 +19,8 @@ class SpeechToText:
         self.received_words = 0
         self.time_first_audio_sent = None  # fixed naming
         self.running = True
-        asyncio.create_task(self._consume_audio_queue())
+        self.audio_consume_task = asyncio.create_task(self._consume_audio_queue())
+        self.finalize_called = False
 
     async def _send(self, payload: dict):
         """Send payload to STT backend asynchronously"""
@@ -76,16 +77,10 @@ class SpeechToText:
                     })
                     if "text" in response:
                         self.transcript_buffer += " " + response["text"]
-    """
-    async def _consume_audio_queue(self):
-        while self.running:
-            audio = await self.audio_queue.get()
-            try:
-                response = await self._send({"type": "audio_chunk", "pcm": audio.tolist()})
-                if "text" in response:
-                    self.transcript_buffer += " " + response["text"]
-            except Exception as e:
-                print("Error sending audio to STT backend:", e)
-            finally:
-                self.audio_queue.task_done()
-    """
+            if self.finalize_called and self.audio_queue.empty():
+                self.running = False
+    
+    async def finalize(self):
+        """Finalize the STT session, flushing any remaining audio."""
+        self.finalize_called = True
+        await self.audio_consume_task
