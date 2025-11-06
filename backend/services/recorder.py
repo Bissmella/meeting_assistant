@@ -1,6 +1,8 @@
 import wave
 import os
 import asyncio
+import json
+from backend.models.meeting import Meeting
 
 class Recorder:
     def __init__(self, dir="recordings"):
@@ -13,9 +15,12 @@ class Recorder:
     async def add_audio(self, pcm):
         self.audio_frames.append(pcm.copy())
 
-    async def add_text(self, text):
-        self.text_file.write(text)
-        self.text_file.flush()
+    async def add_meeting(self, meeting: Meeting):
+        """append a meeting to the json file"""
+        all_meetings = json.loads(open(f"{self.dir}/meetings.json", "r", encoding="utf-8").read()) if os.path.exists(f"{self.dir}/meetings.json") else []
+        all_meetings.append(meeting._to_dict())
+        with open(f"{self.dir}/meetings.json", "w", encoding="utf-8") as f:
+            json.dump(all_meetings, f, indent=2)
 
     async def close(self):
         import numpy as np

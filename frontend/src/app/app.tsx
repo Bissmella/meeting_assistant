@@ -29,6 +29,7 @@ const App = () => {
 
     //chat state
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+    const [rawChatHistory, setRawChatHistory] = useState<ChatMessage[]>([]);
     const [queryInput, setQueryInput] = useState('');
     const [isQuerying, setIsQuerying] = useState(false);
     const [webSocketUrl, setWebSocketUrl] = useState<string | null>(null);
@@ -81,6 +82,18 @@ const App = () => {
         []
     )
 
+    const onUserQuery = useCallback(
+        (query: string) => {
+        sendMessage(
+            JSON.stringify({
+            type: "query",
+            query: query,
+            })
+        );
+        },
+        [sendMessage]
+    );
+
     const { setupAudio, shutdownAudio, audioProcessor } =
         useAudioProcessor(onOpusRecorded);
     
@@ -123,6 +136,27 @@ const App = () => {
         setAppState('processing');
         setAppState('ready');
     };
+
+
+    useEffect(() => {
+        if (lastMessage !== null) {
+            const messageData = JSON.parse(lastMessage.data);
+            if (messageData.type === "response.text.delta") {
+                setChatHistory((prev: ChatMessage[]) : ChatMessage[] =>{
+                    if (prev.length > 0 || prev[prev.length - 1].role !== 'assistant') {
+                        return [...prev, { role: 'assistant', text: messageData.text }];
+                    }
+                    else {
+                        const updated = [...prev];
+                        updated[updated.length - 1].text += messageData.text;
+                        return updated
+                    }
+                ;
+                })
+                    }
+            }
+        
+        }, [lastMessage]);
 
     const handleQuery = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();

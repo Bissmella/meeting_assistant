@@ -51,7 +51,7 @@ class MeetingHandler(AsyncStreamHandler):
         # Save final transcript
         await self.stt.finalize()
         self.meeting.transcript = self.stt.transcript_buffer
-        await self.recorder.add_text(self.meeting.transcript)
+        await self.recorder.add_meeting(self.meeting)
         
         await self.recorder.close()
         if self.meeting.transcript.strip():
