@@ -61,3 +61,39 @@ class MeetingMemory:
             }
             for doc in results
         ]
+    
+    def get_last_meeting(self) -> Meeting | None:
+        """Retrieve the most recent meeting based on start_time metadata."""
+        all_meetings = self.db.get_all_documents()
+        if not all_meetings:
+            return None
+        
+        # Extract unique meetings
+        meeting_dict = {}
+        for doc in all_meetings:
+            mid = doc.metadata["meeting_id"]
+            if mid not in meeting_dict:
+                meeting_dict[mid] = {
+                    "title": doc.metadata["title"],
+                    "participants": doc.metadata["participants"].split(", "),
+                    "start_time": doc.metadata["datetime"],
+                    "transcript_chunks": [],
+                }
+            meeting_dict[mid]["transcript_chunks"].append(doc.page_content)
+        
+        # Find the most recent meeting
+        latest_meeting = None
+        latest_time = None
+        for mid, data in meeting_dict.items():
+            start_time = datetime.fromisoformat(data["start_time"])
+            if latest_time is None or start_time > latest_time:
+                latest_time = start_time
+                latest_meeting = Meeting(
+                    meeting_id=mid,
+                    title=data["title"],
+                    participants=data["participants"],
+                    start_time=start_time,
+                    transcript="\n".join(data["transcript_chunks"]),
+                )
+        
+        return latest_meeting

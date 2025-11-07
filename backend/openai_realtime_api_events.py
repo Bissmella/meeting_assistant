@@ -83,6 +83,8 @@ class SessionUpdated(BaseEvent[Literal["session.updated"]]):
 class InputAudioBufferAppend(BaseEvent[Literal["input_audio_buffer.append"]]):
     audio: str  # Base64-encoded Opus data
 
+class InputUserChatQuery(BaseEvent[Literal['input_user.query']]):
+    query: str
 
 class UnmuteInputAudioBufferAppendAnonymized(
     BaseEvent[Literal["unmute.input_audio_buffer.append_anonymized"]]
@@ -207,6 +209,7 @@ ClientEvent = Union[
     InputAudioBufferStart,
     InputAudioBufferFinalize,
     InputAudioBufferAppend,
+    InputUserChatQuery,
     # Used internally for recording, we're not expecting the user to send this
     UnmuteInputAudioBufferAppendAnonymized,
 ]

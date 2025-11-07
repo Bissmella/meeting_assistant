@@ -86,7 +86,7 @@ const App = () => {
         (query: string) => {
         sendMessage(
             JSON.stringify({
-            type: "query",
+            type: "input_user.query",
             query: query,
             })
         );
@@ -169,34 +169,13 @@ const App = () => {
         // Add user query to chat history
         setChatHistory(prev => [...prev, { role: 'user', text: userQuery }]);
 
-        let responseText = "Sorry, an error occurred while fetching the answer.";
+        //let responseText = "Sorry, an error occurred while fetching the answer.";
 
         try {
-            //send request to backend
-            const response = await fetch(backendServerUrl + '/v1/query_meetings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    query: userQuery,
-                }),
-            });
-            
-            if (!response.ok) {
-                // Throw an error if the HTTP status is not 2xx
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown server error.' }));
-                throw new Error(`HTTP Error ${response.status}: ${errorData.detail || 'Failed to query meetings.'}`);
-            }
-            const data = await response.json();
-            responseText = data.answer;
-        } catch (error) {
-            console.error("Error querying meetings:", error);
-        }
-        finally {
-        // Add assistant response to chat history
-        setChatHistory(prev => [...prev, { role: 'assistant', text: responseText }]);
-        setIsQuerying(false);
+            onUserQuery(queryInput);
+            setQueryInput("");
+        } finally {
+            setIsQuerying(false);
         }
     };
 
