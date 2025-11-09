@@ -1,4 +1,7 @@
 from backend.utils.chatbot import Chatbot
+import asyncio
+from fastrtc import wait_for_item
+
 
 class ChatHandler:
     def __init__(self, LLMService, meeting_memory, recorder):
@@ -6,6 +9,7 @@ class ChatHandler:
         self.meeting_memory = meeting_memory
         self.recorder = recorder
         self.chatbot = Chatbot()
+        self.output_queue = asyncio.Queue()
 
     async def handle_query(self, query: str):
         """Handle a user chat query"""
@@ -28,7 +32,16 @@ class ChatHandler:
         """Generate a response from the chatbot using the LLM service."""
         llm = self.llm
         messages = self.chatbot.prerocessed()
-        async for data in llm(messages):
+        role = "assistant"
+        async for data in llm.stream_response(messages):
             self.output_queue.put(data)
 
-            self.chatbot.add_chat_message_delta(role, delta)
+            self.chatbot.add_chat_message_delta(role, data)
+        self.output_queue.put(None)  #to be checked if correct
+
+    async def emit_responses(self):
+        output_queue_item = await wait_for_item(self.output_queue)
+        if output_queue_item is not None:
+            return output_queue_item
+        else:
+            return None

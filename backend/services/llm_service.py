@@ -1,14 +1,17 @@
 import asyncio
 from openai import AsyncOpenAI, OpenAI
 from typing import Any, cast
+from backend.utils import get_openai_client
+from backend.constants import LLM_SERVER
+
 class LLMService:
-    def __init__(self, client:AsyncOpenAI, api: str):
-        client_sync = OpenAI(api_key="EMPTY", base_url=api)
+    def __init__(self):
+        client_sync = OpenAI(api_key="EMPTY", base_url=LLM_SERVER + "/v1")
         models = client_sync.models.list()
         if len(models.data) != 1:
-            raise ValueError(f"No models or more than one model found at LLM API endpoint: {api}")
+            raise ValueError(f"No models or more than one model found at LLM API endpoint: {LLM_SERVER}")
         self.model = models.data[0].id
-        self.client = client
+        self.client = get_openai_client()
     
 
     async def stream_response(self, messages):
