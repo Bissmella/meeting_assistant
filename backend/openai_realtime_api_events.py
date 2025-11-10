@@ -169,8 +169,8 @@ class UnmuteAdditionalOutputs(BaseEvent[Literal["unmute.additional_outputs"]]):
     args: Any
 
 
-class UnmuteResponseTextDeltaReady(
-    BaseEvent[Literal["unmute.response.text.delta.ready"]]
+class ChatResponseTextDeltaReady(
+    BaseEvent[Literal["chat.response.text.delta.ready"]]
 ):
     delta: str
 
@@ -198,7 +198,7 @@ ServerEvent = Union[
     InputAudioBufferSpeechStarted,
     InputAudioBufferSpeechStopped,
     UnmuteAdditionalOutputs,
-    UnmuteResponseTextDeltaReady,
+    ChatResponseTextDeltaReady,
     UnmuteResponseAudioDeltaReady,
     UnmuteInterruptedByVAD,
 ]

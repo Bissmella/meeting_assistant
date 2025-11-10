@@ -83,7 +83,7 @@ async def _run_route(websocket: WebSocket, handler: MeetingHandler):
                 receive_loop(websocket, handler, emit_queue), name="receive_loop()"
             )
             tg.create_task(
-                    consume_emit_queue(), name="emit_queue_consumer"
+                    send_loop(websocket, emit_queue, handler), name="emit_queue_consumer"
                 )
     except Exception as e:
         import traceback
@@ -192,3 +192,41 @@ async def receive_loop(
 
         # if message_to_record is not None and handler.recorder is not None:
         #     await handler.recorder.add_event("client", message_to_record)
+
+async def send_loop(
+    websocket: WebSocket,
+    emit_queue: asyncio.Queue[ora.ServerEvent],
+    handler: MeetingHandler,
+):
+    """Send messages from the emit queue  and handler output queue to the WebSocket."""
+    while True:
+        if (websocket.client_state != WebSocket.STATE_CONNECTED or
+            websocket.application_state != WebSocket.STATE_CONNECTED):
+            logger.info("send_loop() stopping because WebSocket is disconnected.")
+            raise WebSocketClosedError()
+        
+        try:
+            emission = emit_queue.get_nowait()
+            
+        except asyncio.QueueEmpty:
+            emission_handler = await handler.emit()
+            if emission_handler is None:
+                continue
+            elif isinstance(emission_handler, ora.ServerEvent):
+                emission = emission_handler
+            else:
+                continue
+        try:
+            if isinstance(emission, ora.Error):
+                print("Emit queue event:", emission)
+            else:
+                await websocket.send_text(emission.model_dump_json())
+        except (websocket.WebSocketDisconnect, RuntimeError) as e:
+            if isinstance(e, RuntimeError):
+                logger.info("error in send_loop():", e)
+            else:
+                logger.info(
+                    "send_loop() stopped because WebSocket disconnected: "
+                    f"{e.code=} {e.reason=}"
+                )
+            raise WebSocketClosedError() from e
