@@ -141,10 +141,6 @@ class ResponseTextDelta(BaseEvent[Literal["response.text.delta"]]):
     delta: str
 
 
-class ResponseTextDone(BaseEvent[Literal["response.text.done"]]):
-    text: str
-
-
 class ResponseAudioDelta(BaseEvent[Literal["response.audio.delta"]]):
     delta: str  # Base64-encoded Opus audio data
 
