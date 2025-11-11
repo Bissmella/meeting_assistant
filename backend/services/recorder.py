@@ -34,15 +34,15 @@ class Recorder:
             wf.writeframes((pcm * 32767).astype("int16").tobytes())
         self.text_file.close()
     
-    def _get_last_meeting(self) -> Meeting | str:
+    def _get_last_meeting(self) -> Meeting | str | None:
         """Retrieve the last saved meeting from the recorder's storage."""
         meetings_file = f"{self.dir}/meetings.json"
         if not os.path.exists(meetings_file):
-            return "No meeting has been recorded yet."
+            return None
 
         with open(meetings_file, "r", encoding="utf-8") as f:
             meetings_data = json.load(f)
             if not meetings_data:
-                return "No meeting has been recorded yet."
+                return None
             last_meeting_data = meetings_data[-1]
             return Meeting.from_dict(last_meeting_data)

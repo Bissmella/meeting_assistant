@@ -83,7 +83,7 @@ class SessionUpdated(BaseEvent[Literal["session.updated"]]):
 class InputAudioBufferAppend(BaseEvent[Literal["input_audio_buffer.append"]]):
     audio: str  # Base64-encoded Opus data
 
-class InputUserChatQuery(BaseEvent[Literal['input_user.query']]):
+class InputUserChatQuery(BaseEvent[Literal['input_chat.query']]):
     query: str
 
 class UnmuteInputAudioBufferAppendAnonymized(
@@ -167,6 +167,7 @@ class ConversationItemInputAudioTranscriptionDelta(
 
 class UnmuteAdditionalOutputs(BaseEvent[Literal["unmute.additional_outputs"]]):
     args: Any
+
 
 
 class ChatResponseTextDeltaReady(

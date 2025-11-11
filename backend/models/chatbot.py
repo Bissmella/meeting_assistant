@@ -28,5 +28,9 @@ class Chatbot():
             else:
                 last_message["content"] += delta
         return True
+    
+    def prerocessed(self) -> list[dict[str, str]]:
+        """Get the preprocessed chat history for LLM input."""
+        return self.chat_history
 
     

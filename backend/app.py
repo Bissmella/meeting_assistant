@@ -24,6 +24,7 @@ import math
 from io import BytesIO
 import logging
 
+from backend.handlers.chat_handler import ChatHandler
 from backend.utils.utils import WebSocketClosedError
 import backend.openai_realtime_api_events as ora
 from backend.handlers.main_handler import MeetingHandler
@@ -63,13 +64,14 @@ async def websocket_route(websocket: WebSocket):
         await websocket.accept(subprotocol="realtime")
 
         handler = MeetingHandler(STT_API, app.state.meeting_memory) #TODO handle to be defined
+        chat_handler = ChatHandler(app.state.meeting_memory, handler.recorder)
         async with handler:
-            await _run_route(websocket, handler)
+            await _run_route(websocket, handler, chat_handler=chat_handler)
     except Exception as exc:
         print(f"WebSocket connection error: {exc}")
 
 
-async def _run_route(websocket: WebSocket, handler: MeetingHandler):
+async def _run_route(websocket: WebSocket, handler: MeetingHandler, chat_handler: ChatHandler = None):
     logger.info("Starting _run_route")
     emit_queue: asyncio.Queue[ora.ServerEvent] = asyncio.Queue()
     async def consume_emit_queue():
@@ -80,10 +82,10 @@ async def _run_route(websocket: WebSocket, handler: MeetingHandler):
     try:
         async with asyncio.TaskGroup() as tg:
             tg.create_task(
-                receive_loop(websocket, handler, emit_queue), name="receive_loop()"
+                receive_loop(websocket, handler, emit_queue, chat_handler), name="receive_loop()"
             )
             tg.create_task(
-                    send_loop(websocket, emit_queue, handler), name="emit_queue_consumer"
+                send_loop(websocket, emit_queue, handler, chat_handler), name="emit_queue_consumer"
                 )
     except Exception as e:
         import traceback
@@ -96,6 +98,7 @@ async def receive_loop(
     websocket: WebSocket,
     handler: MeetingHandler,
     emit_queue: asyncio.Queue[ora.ServerEvent],
+    chat_handler: ChatHandler = None,
 ):
     """Receive messages from the WebSocket.
 
@@ -165,6 +168,8 @@ async def receive_loop(
 
             if pcm.size:
                 await handler.receive((SAMPLE_RATE, pcm))
+        elif isinstance(message, ora.InputUserChatQuery):
+            await chat_handler.handle_query(message.query)
         elif isinstance(message, ora.InputAudioBufferStart):
             print("Starting new meeting recording session")
             handler.meeting = message.meeting
@@ -190,13 +195,12 @@ async def receive_loop(
         else:
             logger.info("Ignoring message:", str(message)[:100])
 
-        # if message_to_record is not None and handler.recorder is not None:
-        #     await handler.recorder.add_event("client", message_to_record)
 
 async def send_loop(
     websocket: WebSocket,
     emit_queue: asyncio.Queue[ora.ServerEvent],
     handler: MeetingHandler,
+    chat_handler: ChatHandler = None,
 ):
     """Send messages from the emit queue  and handler output queue to the WebSocket."""
     while True:
@@ -204,18 +208,22 @@ async def send_loop(
             websocket.application_state != WebSocket.STATE_CONNECTED):
             logger.info("send_loop() stopping because WebSocket is disconnected.")
             raise WebSocketClosedError()
-        
+        emission = None
         try:
             emission = emit_queue.get_nowait()
             
         except asyncio.QueueEmpty:
-            emission_handler = await handler.emit()
-            if emission_handler is None:
-                continue
-            elif isinstance(emission_handler, ora.ServerEvent):
-                emission = emission_handler
-            else:
-                continue
+            try:
+                emission = await handler.emit()
+            except Exception as e:
+                logger.warning("Error in handler.emit():", e)
+
+            if emission is None and chat_handler is not None:
+                try:
+                    emission = await chat_handler.emit_responses()
+                except Exception as e:
+                    logger.warning("Error in chat_handler.emit_responses():", e)
+            
         try:
             if isinstance(emission, ora.Error):
                 print("Emit queue event:", emission)

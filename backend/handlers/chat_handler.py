@@ -1,10 +1,12 @@
 from backend.utils.chatbot import Chatbot
 import asyncio
 from fastrtc import wait_for_item
+import backend.openai_realtime_api_events as ora
+from backend.services.llm_service import LLMService
 
 
 class ChatHandler:
-    def __init__(self, LLMService, meeting_memory, recorder):
+    def __init__(self, meeting_memory, recorder):
         self.llm = LLMService()
         self.meeting_memory = meeting_memory
         self.recorder = recorder
@@ -21,20 +23,24 @@ class ChatHandler:
             f"Meeting on {r['metadata']['datetime']} titled '{r['metadata']['title']}':\n{r['content']}"
             for r in context_chunks
         )
+        sources = [{'text': r['content'], 'metadata': r['metadata']} for r in context_chunks]
+        
         last_meeting_context = self.recorder.last_meeting
-        if isinstance(last_meeting_context, str):
-            context = f"No previous meetings recorded.\n\n{context}"
+        if last_meeting_context is not None:
+            sources.append({'text': last_meeting_context, 'metadata': {'info': 'Last recorded meeting'}})
+        
+        self.chatbot.add_chat_message_delta("user", query, None)
 
         await self.generate_response()
         return
     
-    async def generate_response(self):
+    async def generate_response(self, sources: list[dict] | None = None):
         """Generate a response from the chatbot using the LLM service."""
         llm = self.llm
         messages = self.chatbot.prerocessed()
         role = "assistant"
-        async for data in llm.stream_response(messages):
-            self.output_queue.put(data)
+        async for data in llm.stream_response(messages, sources):
+            self.output_queue.put(ora.ChatResponseTextDeltaReady(data))
 
             self.chatbot.add_chat_message_delta(role, data)
         self.output_queue.put(None)  #to be checked if correct

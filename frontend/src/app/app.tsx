@@ -86,7 +86,7 @@ const App = () => {
         (query: string) => {
         sendMessage(
             JSON.stringify({
-            type: "input_user.query",
+            type: "input_chat.query",
             query: query,
             })
         );

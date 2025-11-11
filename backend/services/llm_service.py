@@ -14,7 +14,7 @@ class LLMService:
         self.client = get_openai_client()
     
 
-    async def stream_response(self, messages):
+    async def stream_response(self, messages, sources: list[dict[str, Any]] | None) -> Any:
         """Async generator that yields response chunks from the LLM."""
         payload = {
             "messages": messages,}
@@ -22,6 +22,7 @@ class LLMService:
             model=self.model,
             messages=cast(Any, messages),
             stream=True,
+            extra_body={"sources": sources} if sources is not None else {},
         )
         async with stream:
             async for chunk in stream:
