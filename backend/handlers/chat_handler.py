@@ -43,7 +43,8 @@ class ChatHandler:
             self.output_queue.put(ora.ChatResponseTextDeltaReady(data))
 
             self.chatbot.add_chat_message_delta(role, data)
-        self.output_queue.put(None)  #to be checked if correct
+        await self.output_queue.put(ora.ChatResponseTextDone(""))
+        
 
     async def emit_responses(self):
         output_queue_item = await wait_for_item(self.output_queue)

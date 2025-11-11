@@ -86,6 +86,9 @@ class InputAudioBufferAppend(BaseEvent[Literal["input_audio_buffer.append"]]):
 class InputUserChatQuery(BaseEvent[Literal['input_chat.query']]):
     query: str
 
+class ResponseTextDone(BaseEvent[Literal["response.text.done"]]):
+    text: str
+
 class UnmuteInputAudioBufferAppendAnonymized(
     BaseEvent[Literal["unmute.input_audio_buffer.append_anonymized"]]
 ):
@@ -211,6 +214,7 @@ ClientEvent = Union[
     InputAudioBufferFinalize,
     InputAudioBufferAppend,
     InputUserChatQuery,
+    ResponseTextDone,
     # Used internally for recording, we're not expecting the user to send this
     UnmuteInputAudioBufferAppendAnonymized,
 ]

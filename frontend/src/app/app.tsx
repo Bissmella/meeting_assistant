@@ -154,6 +154,9 @@ const App = () => {
                 ;
                 })
                     }
+            else if (messageData.type === "response.text.done") {
+                setIsQuerying(false);
+            }
             }
         
         }, [lastMessage]);
@@ -175,7 +178,7 @@ const App = () => {
             onUserQuery(queryInput);
             setQueryInput("");
         } finally {
-            setIsQuerying(false);
+            
         }
     };
 
