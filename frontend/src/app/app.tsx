@@ -8,6 +8,7 @@ import { useMicrophoneAccess } from "./useMicrophoneAccess";
 import { useBackendServerUrl } from "./useBackendServerUrl";
 import { Meeting, ChatMessage } from './types';
 import MeetingControlPanel from './MeetingControlPanel';
+import ChatInterface from './chatInterface';
 // --- API Configuration ---
 // NOTE: apiKey is intentionally left blank; the Canvas environment provides it at runtime.
 const apiKey = "";
@@ -57,7 +58,7 @@ const App = () => {
         {
         protocols: ["realtime"],
         },
-        shouldConnect
+        true//shouldConnect
     );
     const onOpusRecorded = useCallback(
         (opus: Uint8Array) => {
@@ -90,6 +91,9 @@ const App = () => {
             query: query,
             })
         );
+        console.log("Sent user query:", query);
+        console.log("should connect:", shouldConnect);
+        console.log("WebSocket ready state:", readyState);
         },
         [sendMessage]
     );
@@ -141,19 +145,31 @@ const App = () => {
     useEffect(() => {
         if (lastMessage !== null) {
             const messageData = JSON.parse(lastMessage.data);
+            
+            console.log("Received message:", messageData);
             if (messageData.type === "response.text.delta") {
+                const deltaText = messageData.delta;
                 setChatHistory((prev: ChatMessage[]) : ChatMessage[] =>{
-                    if (prev.length > 0 || prev[prev.length - 1].role !== 'assistant') {
-                        return [...prev, { role: 'assistant', text: messageData.text }];
+                    if (prev.length === 0 || prev[prev.length - 1].role !== 'assistant') {
+                        return [...prev, { role: 'assistant', text: deltaText }];
                     }
                     else {
-                        const updated = [...prev];
-                        updated[updated.length - 1].text += messageData.text;
-                        return updated
+                        // const updated = [...prev];
+                        // updated[updated.length - 1].text += deltaText;
+                        // return updated
+                        return [
+                            ...prev.slice(0, -1),
+                            { 
+                                ...prev[prev.length - 1], // create a new object
+                                text: prev[prev.length - 1].text + deltaText 
+                            }
+                        ];
                     }
                 ;
                 })
+                console.log(chatHistory)
                     }
+            
             else if (messageData.type === "response.text.done") {
                 setIsQuerying(false);
             }
@@ -161,10 +177,15 @@ const App = () => {
         
         }, [lastMessage]);
 
+  
+
+
     const handleQuery = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!queryInput.trim() || isQuerying || meetings.length === 0) return;
-
+        if (!queryInput.trim() || isQuerying ) return;
+        if (!shouldConnect){
+            setShouldConnect(true);
+        }
         const userQuery = queryInput.trim();
         setQueryInput('');
         setIsQuerying(true);
@@ -184,82 +205,6 @@ const App = () => {
 
 
     
-
-
-    const ChatInterface = () => (
-        <div className="flex flex-col h-full bg-white shadow-xl rounded-xl overflow-hidden">
-            <div className="p-4 bg-indigo-600 text-white flex items-center shadow-lg">
-                <MessageSquare className="w-6 h-6 mr-3" />
-                <h2 className="text-xl font-bold">Query Meeting Notes</h2>
-            </div>
-
-            {meetings.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-4 text-center text-gray-500">
-                    <BookOpen className="w-12 h-12 mb-3 text-gray-300" />
-                    <p className="font-semibold">No Notes Available</p>
-                    <p className="text-sm">Record a meeting first to enable the chat feature.</p>
-                </div>
-            ) : (
-                <>
-                    {/* Chat History Area */}
-                    <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                        <div className="flex items-start">
-                            <Zap className="w-6 h-6 text-indigo-500 flex-shrink-0 mr-3" />
-                            <div className="bg-gray-100 p-3 rounded-tr-xl rounded-bl-xl rounded-br-xl shadow-sm text-sm">
-                                Hello! I have access to {meetings.length} meeting transcripts. Ask me anything about the content, like "What were John's action items?"
-                            </div>
-                        </div>
-
-                        {chatHistory.map((message, index) => (
-                            <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-md ${
-                                    message.role === 'user'
-                                        ? 'bg-indigo-500 text-white rounded-br-none'
-                                        : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                                }`}>
-                                    {message.text}
-                                </div>
-                            </div>
-                        ))}
-
-                        {isQuerying && (
-                            <div className="flex items-start">
-                                <Zap className="w-6 h-6 text-indigo-500 flex-shrink-0 mr-3 animate-pulse" />
-                                <div className="bg-gray-100 p-3 rounded-tr-xl rounded-bl-xl rounded-br-xl shadow-sm text-sm">
-                                    <Loader2 className="w-4 h-4 inline-block animate-spin mr-2" /> Analyzing notes...
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Chat Input */}
-                    <form onSubmit={handleQuery} className="p-4 border-t border-gray-200">
-                        <div className="flex space-x-2">
-                            <input
-                                type="text"
-                                value={queryInput}
-                                onChange={(e) => setQueryInput(e.target.value)}
-                                placeholder="Query your meeting notes..."
-                                disabled={isQuerying}
-                                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
-                            />
-                            <button
-                                type="submit"
-                                disabled={isQuerying || !queryInput.trim()}
-                                className={`p-3 rounded-lg text-white transition duration-150 shadow-md ${
-                                    isQuerying || !queryInput.trim()
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-indigo-600 hover:bg-indigo-700'
-                                }`}
-                            >
-                                <Send className="w-5 h-5" />
-                            </button>
-                        </div>
-                    </form>
-                </>
-            )}
-        </div>
-    );
 
     const MeetingList = () => {
         return (
@@ -331,7 +276,14 @@ const App = () => {
 
                     {/* Column 2/3: Chat Interface */}
                     <div className="lg:col-span-2 h-full min-h-[600px] max-h-chat">
-                        <ChatInterface />
+                        <ChatInterface 
+                        chatHistory={chatHistory}
+                        meetings={meetings}
+                        isQuerying={isQuerying}
+                        handleQuery={handleQuery}
+                        queryInput={queryInput}
+                        setQueryInput={setQueryInput}
+                        />
                     </div>
                 </div>
             </div>

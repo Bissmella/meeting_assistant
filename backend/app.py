@@ -23,6 +23,8 @@ import re
 import math
 from io import BytesIO
 import logging
+import traceback
+from fastapi.websockets import WebSocketState
 
 from backend.handlers.chat_handler import ChatHandler
 from backend.utils.utils import WebSocketClosedError
@@ -66,9 +68,14 @@ async def websocket_route(websocket: WebSocket):
         handler = MeetingHandler(STT_API, app.state.meeting_memory) #TODO handle to be defined
         chat_handler = ChatHandler(app.state.meeting_memory, handler.recorder)
         async with handler:
-            await _run_route(websocket, handler, chat_handler=chat_handler)
+            try:
+                await _run_route(websocket, handler, chat_handler=chat_handler)
+            except Exception as e:
+                print("Exception in _run_route():", e)
+                traceback.print_exc()
     except Exception as exc:
         print(f"WebSocket connection error: {exc}")
+        traceback.print_exc()
 
 
 async def _run_route(websocket: WebSocket, handler: MeetingHandler, chat_handler: ChatHandler = None):
@@ -110,6 +117,7 @@ async def receive_loop(
         logger.info("WebSocket connected, entering receive loop")
         try:
             message_raw = await websocket.receive_text()
+            print("Received message:", str(message_raw)[:100])
         except WebSocketDisconnect as e:
             logger.info(
                 "receive_loop() stopped because WebSocket disconnected: "
@@ -123,10 +131,11 @@ async def receive_loop(
 
             logger.info("receive_loop() stopped because WebSocket disconnected.")
             raise WebSocketClosedError() from e
-
+        
         try:
             message: ora.ClientEvent = ClientEventAdapter.validate_json(message_raw)
         except json.JSONDecodeError as e:
+            print("Invalid JSON received:", e)
             await emit_queue.put(
                 ora.Error(
                     error=ora.ErrorDetails(
@@ -169,6 +178,7 @@ async def receive_loop(
             if pcm.size:
                 await handler.receive((SAMPLE_RATE, pcm))
         elif isinstance(message, ora.InputUserChatQuery):
+            logger.info("Received chat query:", message.query)
             await chat_handler.handle_query(message.query)
         elif isinstance(message, ora.InputAudioBufferStart):
             print("Starting new meeting recording session")
@@ -204,8 +214,8 @@ async def send_loop(
 ):
     """Send messages from the emit queue  and handler output queue to the WebSocket."""
     while True:
-        if (websocket.client_state != WebSocket.STATE_CONNECTED or
-            websocket.application_state != WebSocket.STATE_CONNECTED):
+        if (websocket.client_state == WebSocketState.DISCONNECTED or
+            websocket.application_state == WebSocketState.DISCONNECTED):
             logger.info("send_loop() stopping because WebSocket is disconnected.")
             raise WebSocketClosedError()
         emission = None
@@ -225,11 +235,14 @@ async def send_loop(
                     logger.warning("Error in chat_handler.emit_responses():", e)
             
         try:
+            if emission is None:
+                await asyncio.sleep(0.1)
+                continue
             if isinstance(emission, ora.Error):
                 print("Emit queue event:", emission)
             else:
                 await websocket.send_text(emission.model_dump_json())
-        except (websocket.WebSocketDisconnect, RuntimeError) as e:
+        except (WebSocketDisconnect, RuntimeError) as e:
             if isinstance(e, RuntimeError):
                 logger.info("error in send_loop():", e)
             else:

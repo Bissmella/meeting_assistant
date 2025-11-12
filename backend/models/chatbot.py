@@ -11,7 +11,7 @@ class Chatbot():
         ]
 
     
-    async def add_chat_message_delta(self, role: Literal["user", "assistant"], delta: str, generating_message_i: int|None):
+    async def add_chat_message_delta(self, role: Literal["user", "assistant"], delta: str, generating_message_i: int|None=None) -> bool:
         """Add a delta message to the chat history."""
         if generating_message_i is not None and generating_message_i > len(self.chat_history):
             #TODO logging

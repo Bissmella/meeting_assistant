@@ -87,7 +87,7 @@ class InputUserChatQuery(BaseEvent[Literal['input_chat.query']]):
     query: str
 
 class ResponseTextDone(BaseEvent[Literal["response.text.done"]]):
-    text: str
+    delta: str
 
 class UnmuteInputAudioBufferAppendAnonymized(
     BaseEvent[Literal["unmute.input_audio_buffer.append_anonymized"]]

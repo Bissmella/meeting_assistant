@@ -1,4 +1,4 @@
-from backend.utils.chatbot import Chatbot
+from backend.models.chatbot import Chatbot
 import asyncio
 from fastrtc import wait_for_item
 import backend.openai_realtime_api_events as ora
@@ -29,7 +29,7 @@ class ChatHandler:
         if last_meeting_context is not None:
             sources.append({'text': last_meeting_context, 'metadata': {'info': 'Last recorded meeting'}})
         
-        self.chatbot.add_chat_message_delta("user", query, None)
+        await self.chatbot.add_chat_message_delta("user", query, None)
 
         await self.generate_response()
         return
@@ -40,10 +40,10 @@ class ChatHandler:
         messages = self.chatbot.prerocessed()
         role = "assistant"
         async for data in llm.stream_response(messages, sources):
-            self.output_queue.put(ora.ChatResponseTextDeltaReady(data))
+            await self.output_queue.put(ora.ResponseTextDelta(delta=data))
 
-            self.chatbot.add_chat_message_delta(role, data)
-        await self.output_queue.put(ora.ChatResponseTextDone(""))
+            await self.chatbot.add_chat_message_delta(role, data)
+        await self.output_queue.put(ora.ResponseTextDone(delta=""))
         
 
     async def emit_responses(self):
