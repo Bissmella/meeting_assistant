@@ -6,4 +6,4 @@ class WebSocketClosedError(Exception):
 def get_openai_client(
         server_url: str = LLM_SERVER, api_key: str | None = LLM_API_KEY) -> AsyncOpenAI:
     """Create an OpenAI client with the given API key and base URL."""
-    return AsyncOpenAI(api_key=api_key or "EMPTY", base_url=server_url + "/v1")
+    return AsyncOpenAI(api_key=api_key or "EMPTY", base_url=server_url + "v1")

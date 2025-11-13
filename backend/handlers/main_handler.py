@@ -50,13 +50,14 @@ class MeetingHandler(AsyncStreamHandler):
 
         # Save final transcript
         await self.stt.finalize()
-        self.meeting.transcript = self.stt.transcript_buffer
-        await self.recorder.add_meeting(self.meeting)
-        
-        await self.recorder.close()
-        if self.meeting.transcript.strip():
-            self.meeting_memory.add_meeting(self.meeting)
-        print("Recording finalized and saved.")
+        if self.meeting is not None:
+            self.meeting.transcript = self.stt.transcript_buffer
+            await self.recorder.add_meeting(self.meeting)
+            
+            await self.recorder.close()
+            if self.meeting.transcript.strip():
+                self.meeting_memory.add_meeting(self.meeting)
+            print("Recording finalized and saved.")
         self.closed = True
 
     async def emit(self):

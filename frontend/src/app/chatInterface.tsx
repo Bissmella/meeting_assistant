@@ -1,7 +1,7 @@
 import {Meeting, ChatMessage} from './types';
 import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
 
-const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInput, setQueryInput}:
+const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInput, setQueryInput, bottomOfChatRef}:
     {
         chatHistory: ChatMessage[];
         meetings: Meeting[];
@@ -9,6 +9,7 @@ const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInp
         handleQuery: (e: React.FormEvent<HTMLFormElement>) => void;
         queryInput: string;
         setQueryInput: React.Dispatch<React.SetStateAction<string>>;
+        bottomOfChatRef: React.RefObject<HTMLDivElement | null>;
 
     }) => (
         <div className="flex flex-col h-full bg-white shadow-xl rounded-xl overflow-hidden">
@@ -47,6 +48,7 @@ const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInp
                                 </div>
                             </div>
                         ))}
+                        <div ref={bottomOfChatRef} />
 
                         {isQuerying && (
                             <div className="flex items-start">

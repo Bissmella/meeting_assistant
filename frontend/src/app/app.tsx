@@ -34,6 +34,7 @@ const App = () => {
     const [queryInput, setQueryInput] = useState('');
     const [isQuerying, setIsQuerying] = useState(false);
     const [webSocketUrl, setWebSocketUrl] = useState<string | null>(null);
+    const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
 
 
 
@@ -167,7 +168,9 @@ const App = () => {
                     }
                 ;
                 })
-                console.log(chatHistory)
+                if (bottomOfChatRef.current) {
+                    bottomOfChatRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
                     }
             
             else if (messageData.type === "response.text.done") {
@@ -283,6 +286,7 @@ const App = () => {
                         handleQuery={handleQuery}
                         queryInput={queryInput}
                         setQueryInput={setQueryInput}
+                        bottomOfChatRef={bottomOfChatRef}
                         />
                     </div>
                 </div>
