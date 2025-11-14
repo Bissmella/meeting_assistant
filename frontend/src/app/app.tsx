@@ -186,9 +186,7 @@ const App = () => {
     const handleQuery = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!queryInput.trim() || isQuerying ) return;
-        if (!shouldConnect){
-            setShouldConnect(true);
-        }
+        
         const userQuery = queryInput.trim();
         setQueryInput('');
         setIsQuerying(true);

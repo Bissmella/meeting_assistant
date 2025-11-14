@@ -21,16 +21,25 @@ class LLMService:
         """Async generator that yields response chunks from the LLM."""
         payload = {
             "messages": messages,}
-        stream = self.client.chat.completions.stream(
+        # stream = self.client.chat.completions.stream(
+        #     model=self.model,
+        #     messages=cast(Any, messages),
+        #     #stream=True,
+        #     extra_body={"sources": sources} if sources is not None else {},
+        # )
+        # async with stream:
+        #     async for chunk in stream:
+        #         chunk_content = chunk.choices[0].delta.get("content", "")
+        #         yield chunk_content
+
+        async with self.client.chat.completions.stream(
             model=self.model,
             messages=cast(Any, messages),
-            #stream=True,
             extra_body={"sources": sources} if sources is not None else {},
-        )
-        async with stream:
-            async for chunk in stream:
-                chunk_content = chunk.choices[0].delta.get("content", "")
-                yield chunk_content
+        ) as stream:
+            async for event in stream:
+                if event.type == "message.delta" and event.delta.content:
+                    yield event.delta.content
         # ### For testing without an actual LLM server, we simulate a response:
         # simulated_response = "This is a simulated response from the LLM."
         # for char in simulated_response:
