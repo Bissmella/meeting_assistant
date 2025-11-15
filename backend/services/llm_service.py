@@ -38,8 +38,20 @@ class LLMService:
             extra_body={"sources": sources} if sources is not None else {},
         ) as stream:
             async for event in stream:
-                if event.type == "message.delta" and event.delta.content:
-                    yield event.delta.content
+                print("Received event:", event)
+                if event.type == "content.delta":
+                    yield event.delta
+
+                #Chunk event (OpenAI-style completion chunks)
+                elif event.type == "chunk":
+                    for choice in event.chunk.choices:
+                        if hasattr(choice.delta, "content") and choice.delta.content:
+                            yield choice.delta.content
+
+                #Final message event (optional)
+                elif event.type == "message":
+                    if event.message.content:
+                        yield event.message.content
         # ### For testing without an actual LLM server, we simulate a response:
         # simulated_response = "This is a simulated response from the LLM."
         # for char in simulated_response:

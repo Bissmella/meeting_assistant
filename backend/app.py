@@ -117,7 +117,7 @@ async def receive_loop(
         logger.info("WebSocket connected, entering receive loop")
         try:
             message_raw = await websocket.receive_text()
-            print("Received message:", str(message_raw)[:100])
+            
         except WebSocketDisconnect as e:
             logger.info(
                 "receive_loop() stopped because WebSocket disconnected: "
@@ -187,7 +187,7 @@ async def receive_loop(
         elif isinstance(message, ora.InputAudioBufferFinalize):
             await handler.finalize_recording()
             print("meeting finished, finalizing")
-            await websocket.close(code=1000, reason="Meeting finalized")
+            #await websocket.close(code=1000, reason="Meeting finalized")
             return
         elif isinstance(message, ora.RecordingStopped):
             await handler.finalize_recording()

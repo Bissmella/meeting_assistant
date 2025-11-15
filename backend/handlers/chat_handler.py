@@ -31,7 +31,7 @@ class ChatHandler:
         
         await self.chatbot.add_chat_message_delta("user", query, None)
 
-        await self.generate_response()
+        await self.generate_response(sources)
         return
     
     async def generate_response(self, sources: list[dict] | None = None):
