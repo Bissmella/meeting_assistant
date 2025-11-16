@@ -44,9 +44,10 @@ class LLMService:
 
                 #Chunk event (OpenAI-style completion chunks)
                 elif event.type == "chunk":
-                    for choice in event.chunk.choices:
-                        if hasattr(choice.delta, "content") and choice.delta.content:
-                            yield choice.delta.content
+                    continue
+                    # for choice in event.chunk.choices:
+                    #     if hasattr(choice.delta, "content") and choice.delta.content:
+                    #         yield choice.delta.content
 
                 #Final message event (optional)
                 elif event.type == "message":

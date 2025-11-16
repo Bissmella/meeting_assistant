@@ -3,6 +3,7 @@ import asyncio
 from fastrtc import wait_for_item
 import backend.openai_realtime_api_events as ora
 from backend.services.llm_service import LLMService
+import json
 
 
 class ChatHandler:
@@ -26,8 +27,19 @@ class ChatHandler:
         sources = [{'text': r['content'], 'metadata': r['metadata']} for r in context_chunks]
         
         last_meeting_context = self.recorder.last_meeting
+
         if last_meeting_context is not None:
-            sources.append({'text': last_meeting_context, 'metadata': {'info': 'Last recorded meeting'}})
+            meeting_text = last_meeting_context.model_dump(by_alias=True)
+            meeting_text["start_time"] = meeting_text["start_time"].isoformat()
+            meeting_text = json.dumps(
+                meeting_text,
+                ensure_ascii=False
+            )
+            
+            sources.append({
+                "text": meeting_text,
+                "metadata": {"info": "Last recorded meeting"}
+            })
         
         await self.chatbot.add_chat_message_delta("user", query, None)
 

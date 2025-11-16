@@ -1,5 +1,6 @@
 import {Meeting, ChatMessage} from './types';
 import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
+import ReactMarkdown from "react-markdown";
 
 const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInput, setQueryInput, bottomOfChatRef}:
     {
@@ -44,7 +45,7 @@ const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInp
                                         ? 'bg-indigo-500 text-white rounded-br-none'
                                         : 'bg-gray-100 text-gray-800 rounded-bl-none'
                                 }`}>
-                                    {message.text}
+                                    <ReactMarkdown>{message.text}</ReactMarkdown>
                                 </div>
                             </div>
                         ))}
