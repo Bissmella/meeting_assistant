@@ -176,10 +176,10 @@ async def receive_loop(
             )
 
             if pcm.size:
-                await handler.receive((SAMPLE_RATE, pcm))
+                asyncio.create_task(handler.receive((SAMPLE_RATE, pcm)))
         elif isinstance(message, ora.InputUserChatQuery):
             logger.info("Received chat query:", message.query)
-            await chat_handler.handle_query(message.query)
+            asyncio.create_task(chat_handler.handle_query(message.query))
         elif isinstance(message, ora.InputAudioBufferStart):
             print("Starting new meeting recording session")
             handler.meeting = message.meeting

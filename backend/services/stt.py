@@ -21,13 +21,13 @@ class SpeechToText:
         self.running = True
         self.audio_consume_task = asyncio.create_task(self._consume_audio_queue())
         self.finalize_called = False
+        self.client = httpx.AsyncClient(timeout=30.0)
 
     async def _send(self, payload: dict):
         """Send payload to STT backend asynchronously"""
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(self.api, json=payload, headers={"Content-Type": "application/json"})
-            resp.raise_for_status()
-            return resp.json()
+        resp = await self.client.post(self.api, json=payload, headers={"Content-Type": "application/json"})
+        resp.raise_for_status()
+        return resp.json()
 
     async def send_audio(self, audio: np.ndarray):
         """Send PCM audio to the STT backend and return transcription"""
@@ -84,3 +84,4 @@ class SpeechToText:
         """Finalize the STT session, flushing any remaining audio."""
         self.finalize_called = True
         await self.audio_consume_task
+        await self.client.aclose()
