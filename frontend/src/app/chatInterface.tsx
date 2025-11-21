@@ -34,7 +34,7 @@ const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInp
                         <div className="flex items-start">
                             <Zap className="w-6 h-6 text-indigo-500 flex-shrink-0 mr-3" />
                             <div className="bg-gray-100 p-3 rounded-tr-xl rounded-bl-xl rounded-br-xl shadow-sm text-sm">
-                                Hello! I have access to {meetings.length} meeting transcripts. Ask me anything about the content, like "What were John's action items?"
+                                Hello! I have access to meeting transcripts. Ask me anything about the content, like "What were John's action items?"
                             </div>
                         </div>
 

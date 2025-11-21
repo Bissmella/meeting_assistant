@@ -24,6 +24,8 @@ class ChatHandler:
             f"Meeting on {r['metadata']['datetime']} titled '{r['metadata']['title']}':\n{r['content']}"
             for r in context_chunks
         )
+        for c in context_chunks:
+            c['metadata']['title'] = 'Meeting minute'
         sources = [{'text': r['content'], 'metadata': r['metadata']} for r in context_chunks]
         
         last_meeting_context = self.recorder.last_meeting
@@ -37,12 +39,12 @@ class ChatHandler:
             )
             
             sources.append({
+                "title": "meeting minute",
                 "text": meeting_text,
                 "metadata": {"info": "Last recorded meeting"}
             })
         
         await self.chatbot.add_chat_message_delta("user", query, None)
-
         await self.generate_response(sources)
         return
     

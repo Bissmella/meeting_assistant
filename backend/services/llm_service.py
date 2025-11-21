@@ -21,14 +21,12 @@ class LLMService:
         """Async generator that yields response chunks from the LLM."""
         payload = {
             "messages": messages,}
-
         async with self.client.chat.completions.stream(
             model=self.model,
             messages=cast(Any, messages),
-            extra_body={"sources": sources} if sources is not None else {},
+            extra_body=cast(Any, {"sources": sources}) #if sources is not None else {},
         ) as stream:
             async for event in stream:
-                print("Received event:", event)
                 if event.type == "content.delta":
                     yield event.delta
 
