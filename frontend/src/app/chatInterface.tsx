@@ -1,5 +1,5 @@
 import {Meeting, ChatMessage} from './types';
-import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
+import { Loader2,  MessageSquare, Send, Zap } from 'lucide-react';
 import ReactMarkdown from "react-markdown";
 
 const ChatInterface = ({chatHistory, meetings, isQuerying, handleQuery, queryInput, setQueryInput, bottomOfChatRef}:

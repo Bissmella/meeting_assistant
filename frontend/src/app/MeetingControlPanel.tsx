@@ -1,5 +1,5 @@
-import { Meeting, ChatMessage } from './types';
-import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
+import { Meeting } from './types';
+import { Loader2, Mic, StopCircle } from 'lucide-react';
 
 const MeetingControlPanel = ({ appState, currentMeeting, setCurrentMeeting, onConnectButtonPress, finishMeeting, currentTranscript }: {
   appState: string;

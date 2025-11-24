@@ -13,7 +13,9 @@
     "opus-recorder": "^8.0.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "lucide-react": "^0.547.0",
+    "react-use-websocket": "^4.13.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

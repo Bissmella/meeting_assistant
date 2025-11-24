@@ -96,7 +96,7 @@ export const useAudioProcessor = (
       const { audioContext, opusRecorder } =
         audioProcessorRef.current;
       //pause to flush buffers
-      await opusRecorder.pause(true);
+      //await opusRecorder.pause(true);
       // Disconnect all nodes
       opusRecorder.stop();
       audioContext.close();

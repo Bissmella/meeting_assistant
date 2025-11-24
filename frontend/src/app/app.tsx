@@ -1,9 +1,9 @@
 "use client";
-import useWebSocket, { ReadyState } from "react-use-websocket";
+import useWebSocket from "react-use-websocket";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Mic, StopCircle, MessageSquare, Send, Zap, Trash2, BookOpen } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { useAudioProcessor as useAudioProcessor } from "./useAudioProcessor";
-import { base64DecodeOpus, base64EncodeOpus } from "./audioUtil";
+import { base64EncodeOpus } from "./audioUtil";
 import { useMicrophoneAccess } from "./useMicrophoneAccess";
 import { useBackendServerUrl } from "./useBackendServerUrl";
 import { Meeting, ChatMessage } from './types';
@@ -12,9 +12,6 @@ import ChatInterface from './chatInterface';
 // --- API Configuration ---
 // NOTE: apiKey is intentionally left blank; the Canvas environment provides it at runtime.
 const apiKey = "";
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-
 
 const App = () => {
     //app state
@@ -26,11 +23,9 @@ const App = () => {
     transcript: '',
     start_time: new Date(),}));
     const [currentTranscript, setCurrentTranscript] = useState('');
-    const [meetingTitle, setMeetingTitle] = useState('');
 
     //chat state
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-    const [rawChatHistory, setRawChatHistory] = useState<ChatMessage[]>([]);
     const [queryInput, setQueryInput] = useState('');
     const [isQuerying, setIsQuerying] = useState(false);
     const [webSocketUrl, setWebSocketUrl] = useState<string | null>(null);
@@ -241,7 +236,7 @@ const App = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
-            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://cdn.tailwindcss.com" async />
             <style jsx>{`
                 .font-sans {
                     font-family: 'Inter', sans-serif;
