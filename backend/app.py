@@ -38,7 +38,7 @@ app = FastAPI()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-STT_API = "https://ungoaded-tashina-trustily.ngrok-free.dev/stt"
+STT_API = os.environ.get("LLM_STT_URL", "https://ungoaded-tashina-trustily.ngrok-free.dev/stt")
 # --- In-Memory Database (Simulating a Vector DB) ---
 # Stores: { id: str, title: str, transcript: str, timestamp: float, vector: dict }
 MEETING_NOTES = []
