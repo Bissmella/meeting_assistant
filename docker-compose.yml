@@ -1,0 +1,45 @@
+services:
+  traefik:
+    image: traefik:v3.3.1
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  frontend:
+    image: meetingcplt_front:latest
+    build:
+      context: frontend/
+      dockerfile: dev.Dockerfile
+    volumes:
+      - ./frontend/src:/app/src
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=10"
+  
+  backend:
+    image: meetingcplt_back:latest
+    build:
+      context: ./
+      target: dev
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      - LLM_STT_URL=YOUR_LLM_STT_NGROK_URL
+    labels:
+      - "=traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.middlewares=strip-api"
+      - "traefik.http.middlewares.strip-api.replacepathregex.regex=^/api/(.*)"
+      - "traefik.http.middlewares.strip-api.replacepathregex.replacement=/$$1"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=80"
+      - "traefik.http.routers.backend.priority=100"
+      - "prometheus-port=80"

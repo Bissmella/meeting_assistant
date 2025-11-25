@@ -1,0 +1,13 @@
+*.egg-info
+*.pyc
+
+backend/data
+backend/recordings
+backend/ngrok_keys
+.venv/
+
+Dockerfile
+
+frontend/node_modules
+frontend/.next
+notebooks/
