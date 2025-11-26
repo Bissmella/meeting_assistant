@@ -29,12 +29,12 @@ meeting_assistant/
 │   │   └── index.tsx
 │   ├── package.json
 │   └── ...
-├── backend/                           # FastAPI Python backend
-│   ├── app.py                         # Main Flask app
+├── backend/                           #FastAPI Python backend
+│   ├── app.py                         #main app
 │   └── requirements.txt
 ├── notebooks/
-│   ├── stt_pytorch.ipynb              # LLM STT inference server (to be run in colab)                          
-├── README.md                           # This file
+│   ├── stt_pytorch.ipynb              #LLM STT inference server (to be run in colab)                          
+├── README.md                           #current file
 └── .gitignore
 ```
 
