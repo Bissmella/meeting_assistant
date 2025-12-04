@@ -7,8 +7,8 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 COPY public/ ./public
 
-RUN corepack enable pnpm && pnpm i --frozen-lockfile
-
+#RUN corepack enable pnpm && pnpm i --frozen-lockfile
+RUN npm install
 
 EXPOSE 3000
 
@@ -21,4 +21,4 @@ ENV NEXT_PUBLIC_IN_DOCKER=true
 HEALTHCHECK --start-period=15s \
     CMD curl --fail http://localhost:3000/ || exit 1
 
-CMD ["pnpm", "dev"]
+CMD ["npm", "run", "dev"]

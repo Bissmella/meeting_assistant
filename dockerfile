@@ -14,9 +14,9 @@ EXPOSE 80
 
 # prod build
 FROM base AS prod
-CMD ["uvicorn", "main:app", "--host", "0.0.0" , "--port", "80", "--ws-per-message-deflate=false"]
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0" , "--port", "80", "--ws-per-message-deflate=false"]
 
 
 #hor reload
 FROM base AS dev
-CMD ["uvicorn", "main:app", "--host", "0.0.0" , "--port", "80", "--reload", "--ws-per-message-deflate=false"]
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0" , "--port", "80", "--reload", "--ws-per-message-deflate=false"]
